@@ -1,4 +1,4 @@
-#include "cinder/app/AppNative.h"
+#include "cinder/app/App.h"
 #include "cinder/app/RendererGl.h"
 #include "cinder/gl/gl.h"
 
@@ -9,7 +9,7 @@ using namespace ci;
 using namespace ci::app;
 using namespace std;
 
-class HapMultiLayeredApp : public AppNative {
+class HapMultiLayeredApp : public App {
   public:
 	void setup();
 	void mouseDown( MouseEvent event );	
@@ -58,4 +58,4 @@ void HapMultiLayeredApp::draw()
 	}
 }
 
-CINDER_APP_NATIVE( HapMultiLayeredApp, RendererGl )
+CINDER_APP( HapMultiLayeredApp, RendererGl )

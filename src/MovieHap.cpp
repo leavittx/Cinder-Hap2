@@ -256,7 +256,7 @@ namespace cinder { namespace qtime {
 				gl::Texture2d::Format format;
 				format.wrap( GL_CLAMP_TO_EDGE ).magFilter( GL_LINEAR ).minFilter( GL_LINEAR ).internalFormat( internalFormat ).dataType( GL_UNSIGNED_INT_8_8_8_8_REV ).immutableStorage();// .pixelDataFormat( GL_BGRA );
 				mTexture = gl::Texture2d::create( backingWidth, backingHeight, format );
-				mTexture->setCleanSize( width, height );
+				mTexture->setCleanBounds( Area(0, 0, width, height) );
 				
 				CI_LOG_I( "Created texture." );
 				
@@ -313,16 +313,17 @@ namespace cinder { namespace qtime {
 		
 		mObj->lock();
 		if( mObj->mTexture ) {
-			Rectf centeredRect = Rectf( mObj->mTexture->getCleanBounds() ).getCenteredFit( app::getWindowBounds(), true );
+			Rectf centeredRect = Rectf( mObj->mTexture->getBounds() ).getCenteredFit( app::getWindowBounds(), true );
 			gl::color( Color::white() );
 			
 			auto drawRect = [&]() {
 				gl::ScopedTextureBind tex( mObj->mTexture );
-				float cw = mObj->mTexture->getCleanWidth();
-				float ch = mObj->mTexture->getCleanHeight();
+				float cw = mObj->mTexture->getActualWidth();
+				float ch = mObj->mTexture->getActualHeight();
 				float w = mObj->mTexture->getWidth();
 				float h = mObj->mTexture->getHeight();
-				gl::drawSolidRect( centeredRect, vec2( 0, 0 ), vec2( cw / w, ch / h ) );
+				//gl::drawSolidRect(centeredRect , vec2(0, 0), vec2(cw / w, ch / h) );
+				gl::drawSolidRect(centeredRect, vec2(0, 0), vec2(w / cw, h / ch));
 			};
 			
 			if( isHapQ() ) {

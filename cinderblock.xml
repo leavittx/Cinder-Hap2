@@ -10,7 +10,7 @@
 	version="0.2"
 	libraryUrl="www.libcinder.org"
     >
-
+	<requires>org.libcinder.quicktime</requires>
     <sourcePattern>src/*.cpp</sourcePattern>
     <sourcePattern>src/*.c</sourcePattern>
     <headerPattern>src/*.h</headerPattern>
@@ -26,8 +26,6 @@
 	</platform>
 	<platform os="msw">
 		<includePath>include/msw</includePath>
-		<staticLibrary>lib/msw/x86/CVClient.lib</staticLibrary>
-		<staticLibrary>lib/msw/x86/QTMLClient.lib</staticLibrary>
 	</platform>
 </block>
 </cinder>
