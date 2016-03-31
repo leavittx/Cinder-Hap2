@@ -19,6 +19,7 @@ extern "C" {
 #include "cinder/app/App.h"
 #include "cinder/Color.h"
 #include "cinder/gl/Context.h"
+#include "cinder/GeomIo.h"
 
 
 #if defined( CINDER_MAC )
@@ -86,6 +87,17 @@ namespace cinder { namespace qtime {
 		std::call_once( mHapQOnceFlag, []() {
 			MovieGlHap::Obj::sHapQShader = gl::GlslProg::create( app::loadResource(RES_HAP_VERT),  app::loadResource(RES_HAP_FRAG) );
 		} );
+
+    // Just make sure that TexCoord is in there
+    auto rectAttribSet = geom::Rect().getAvailableAttribs();
+    if (rectAttribSet.count(geom::TEX_COORD_0) == 0)
+    {
+      //ExitProcess(0);
+    }
+
+    Rectf fsQuad(-1.0f, -1.0f, 1.0f, 1.0f);
+    mFullscreenQuadDefaultBatch = gl::Batch::create(geom::Rect(fsQuad), mDefaultShader);
+    mFullscreenQuadHapQBatch = gl::Batch::create(geom::Rect(fsQuad), MovieGlHap::Obj::sHapQShader);
 	}
 	
 	MovieGlHap::Obj::~Obj()
@@ -183,6 +195,8 @@ namespace cinder { namespace qtime {
 
 		// Set framerate callback
 		this->setNewFrameCallback( updateMovieFPS, (void*)this );
+
+    // Goes here, no errors
 	}
 	
 //#if defined( CINDER_MAC )
@@ -199,6 +213,8 @@ namespace cinder { namespace qtime {
 	
 	void MovieGlHap::Obj::newFrame( CVImageBufferRef cvImage )
 	{
+    //ExitProcess(0);
+
 		::CVPixelBufferLockBaseAddress( cvImage, kCVPixelBufferLock_ReadOnly );
 		// Load HAP frame
 		if( ::CFGetTypeID( cvImage ) == ::CVPixelBufferGetTypeID() ) {
@@ -290,8 +306,13 @@ namespace cinder { namespace qtime {
 		::CVPixelBufferUnlockBaseAddress( cvImage, kCVPixelBufferLock_ReadOnly );
 		::CVPixelBufferRelease(cvImage);
 	}
-	
-	gl::TextureRef MovieGlHap::getTexture()
+
+  MovieBase::Obj* MovieGlHap::getObj() const
+	{
+	  return mObj.get();
+	}
+
+  gl::TextureRef MovieGlHap::getTexture()
 	{
 		updateFrame();
 		
@@ -311,29 +332,56 @@ namespace cinder { namespace qtime {
 	{
 		updateFrame();
 		
+    //gl::disableAlphaBlending();
+
+    //gl::color(Color(0.0f, 1.0f, 0.0f));;
+    //gl::drawSolidRect(Rectf(0, 0, getWidth(), getHeight()), vec2(0, 0));
+    //return;
+
 		mObj->lock();
-		if( mObj->mTexture ) {
-			Rectf centeredRect = Rectf( mObj->mTexture->getBounds() ).getCenteredFit( app::getWindowBounds(), true );
-			gl::color( Color::white() );
+		if (mObj->mTexture)
+    {
+			Rectf centeredRect = Rectf(mObj->mTexture->getBounds()).getCenteredFit(app::getWindowBounds(), true);
+			gl::color(Color::white());
 			
-			auto drawRect = [&]() {
-				gl::ScopedTextureBind tex( mObj->mTexture );
+			auto drawRect = [&]()
+      {
+				gl::ScopedTextureBind tex(mObj->mTexture);
 				float cw = mObj->mTexture->getActualWidth();
 				float ch = mObj->mTexture->getActualHeight();
 				float w = mObj->mTexture->getWidth();
 				float h = mObj->mTexture->getHeight();
 				//gl::drawSolidRect(centeredRect , vec2(0, 0), vec2(cw / w, ch / h) );
+
+        // No tex coords here?
 				gl::drawSolidRect(centeredRect, vec2(0, 0), vec2(w / cw, h / ch));
+        //gl::drawSolidRect(Rectf(0, 0, getWidth(), getHeight()), vec2(0, 0));
 			};
 			
-			if( isHapQ() ) {
-				gl::ScopedGlslProg bind( MovieGlHap::Obj::sHapQShader );
+			if (isHapQ()) 
+      {
+        //mObj->mFullscreenQuadHapQBatch->draw();
+
+				gl::ScopedGlslProg bind(MovieGlHap::Obj::sHapQShader);
 				drawRect();
-			} else {
-				gl::ScopedGlslProg bind( mObj->mDefaultShader );
+			}
+      else
+      {
+        //gl::draw(mObj->mTexture, Rectf(0, 0, getWidth(), getHeight()));
+        
+        //gl::ScopedTextureBind tex(mObj->mTexture);
+        //mObj->mFullscreenQuadDefaultBatch->draw();
+
+				gl::ScopedGlslProg bind(mObj->mDefaultShader);
 				drawRect();
 			}
 		}
+    else
+    {
+      // Indicate that something is wrong
+      gl::color(Color(0.0f, 1.0f, 0.0f));;
+      gl::drawSolidRect(Rectf(0, 0, getWidth(), getHeight()), vec2(0, 0));
+    }
 		mObj->unlock();
 	}
 } } //namespace cinder::qtime

@@ -11,6 +11,7 @@
 #include "cinder/gl/gl.h"
 #include "cinder/gl/GlslProg.h"
 #include "cinder/gl/Texture.h"
+#include "cinder/gl/Batch.h"
 
 #if defined( CINDER_MSW )
 #define _STDINT_H
@@ -35,6 +36,7 @@ namespace cinder { namespace qtime {
 		gl::Texture2dRef getTexture();
 		gl::GlslProgRef getGlsl() const;
 		void draw();
+    //void draw(const ci::);
 		
 		bool			isHap() const { return mCodec == Codec::HAP; }
 		bool			isHapA() const { return mCodec == Codec::HAP_A; }
@@ -56,17 +58,20 @@ namespace cinder { namespace qtime {
 		struct Obj : public MovieBase::Obj {
 			Obj();
 			~Obj();
-			virtual void		releaseFrame();
-			virtual void		newFrame( CVImageBufferRef cvImage );
+		  void		releaseFrame() override;
+		  void		newFrame( CVImageBufferRef cvImage ) override;
 			gl::Texture2dRef	mTexture;
 			gl::GlslProgRef		mDefaultShader;
 			static gl::GlslProgRef	sHapQShader;
+      gl::BatchRef      mFullscreenQuadHapQBatch;
+      gl::BatchRef      mFullscreenQuadDefaultBatch;
 			std::once_flag			mHapQOnceFlag;
 		};
+
 		std::unique_ptr<Obj>		mObj;
-		virtual MovieBase::Obj*		getObj() const { return mObj.get(); }
-		
-		Codec						mCodec;
+	  MovieBase::Obj* getObj() const override;
+
+	  Codec						mCodec;
 	};
 
 } } //namespace cinder::qtime
