@@ -1,3 +1,5 @@
+#include "boost/optional.hpp"
+
 #include "cinder/app/App.h"
 #include "cinder/app/RendererGl.h"
 #include "cinder/Surface.h"
@@ -6,6 +8,7 @@
 #include "cinder/Utilities.h"
 #include "cinder/ImageIo.h"
 #include "cinder/Timer.h"
+#include "cinder/Xml.h"
 
 #include "Resources.h"
 
@@ -20,8 +23,15 @@ using namespace ci;
 using namespace ci::app;
 using namespace ph::warping;
 using namespace std;
+using boost::optional;
 
 template <typename T> string tostr(const T& t, int p) { ostringstream os; os << std::setprecision(p) << std::fixed << t; return os.str(); }
+
+struct AppSettings
+{
+  ivec2 mWindowPos;
+  ivec2 mWindowSize;
+};
 
 class HapPlayerMultiscreenWarpApp : public App
 {
@@ -50,6 +60,11 @@ private:
   void loadMovieFile(const fs::path &path);
   void drawMovie();
 
+  static optional<AppSettings> readSettings(const ci::DataSourceRef &source);
+  static void writeSettings(const AppSettings& appSettings, const ci::DataTargetRef &target);
+  AppSettings getCurrentAppSettings() const;
+  void applyAppSettings(const AppSettings& appSettings);
+
 private:
   // Hap video playback
   gl::TextureRef mInfoTexture;
@@ -61,9 +76,12 @@ private:
 
   // Warps
   bool mUseBeginEnd;
-  fs::path mSettings;
+  fs::path mWarpSettingsPath;
   WarpList mWarps;
   gl::TextureRef mHelpImage;
+
+  // Settings
+  fs::path mAppSettingsPath;
 };
 
 HapPlayerMultiscreenWarpApp::HapPlayerMultiscreenWarpApp()
@@ -88,22 +106,17 @@ void HapPlayerMultiscreenWarpApp::setup()
   setFpsSampleInterval(0.25);
   //disableFrameRate();
 
+  // Set app settings path
+  mAppSettingsPath = getAssetPath("") / "app.xml";
+
   // Setup warps
   mUseBeginEnd = false;
   // Initialize warps
-  mSettings = getAssetPath("") / "warps.xml";
-  if (fs::exists(mSettings))
-  {
-    // load warp settings from file if one exists
-    mWarps = Warp::readSettings(loadFile(mSettings));
-  }
-  else
-  {
-    // Otherwise create a single warp from scratch
-    //mWarps.push_back(WarpBilinear::create());
-    mWarps.push_back(WarpPerspective::create());
-    //mWarps.push_back(WarpPerspectiveBilinear::create());
-  }
+  mWarpSettingsPath = getAssetPath("") / "warps.xml";
+  // Otherwise create a single warp from scratch
+  //mWarps.push_back(WarpBilinear::create());
+  mWarps.push_back(WarpPerspective::create());
+  //mWarps.push_back(WarpPerspectiveBilinear::create());
 
   // Load help image
   try 
@@ -124,8 +137,8 @@ void HapPlayerMultiscreenWarpApp::setup()
 
 void HapPlayerMultiscreenWarpApp::cleanup()
 {
-  // Save warp settings
-  Warp::writeSettings(mWarps, writeFile(mSettings));
+  //// Save warp settings
+  //Warp::writeSettings(mWarps, writeFile(mWarpSettingsPath));
 }
 
 void HapPlayerMultiscreenWarpApp::update()
@@ -138,12 +151,12 @@ void HapPlayerMultiscreenWarpApp::draw()
   gl::enableAlphaBlending();
   gl::viewport(toPixels(getWindowSize()));
 
-  // draw grid
-  ivec2 sz = getWindowSize() / ivec2(8, 6);
-  gl::color(Color::gray(0.2f));
-  for (int x = 0; x < 8; x++)
-    for (int y = (x % 2 ? 0 : 1); y < 6; y += 2)
-      gl::drawSolidRect(Rectf(0.0f, 0.0f, sz.x, sz.y) + sz * ivec2(x, y));
+  //// draw grid
+  //ivec2 sz = getWindowSize() / ivec2(8, 6);
+  //gl::color(Color::gray(0.2f));
+  //for (int x = 0; x < 8; x++)
+  //  for (int y = (x % 2 ? 0 : 1); y < 6; y += 2)
+  //    gl::drawSolidRect(Rectf(0.0f, 0.0f, sz.x, sz.y) + sz * ivec2(x, y));
 
   mPerfTracker->startFrame();
   drawMovie();
@@ -156,6 +169,7 @@ void HapPlayerMultiscreenWarpApp::draw()
   }
 
   // draw info
+  gl::color(1.0f, 1.0f, 1.0f);
   if (mInfoTexture) 
   {
     gl::draw(mInfoTexture, ivec2(20, getWindowHeight() - 20 - mInfoTexture->getHeight()));
@@ -232,6 +246,28 @@ void HapPlayerMultiscreenWarpApp::keyDown(KeyEvent event)
     case KeyEvent::KEY_p:
       mPerfTrackerVisible = !mPerfTrackerVisible;
       break;
+    case KeyEvent::KEY_s:
+      // save app settings
+      writeSettings(getCurrentAppSettings(), writeFile(mAppSettingsPath));
+      // Save warp settings
+      Warp::writeSettings(mWarps, writeFile(mWarpSettingsPath));
+      break;
+    case KeyEvent::KEY_l:
+      // load app settings from file if one exists
+      if (fs::exists(mAppSettingsPath))
+      {
+        auto optAppSettings = readSettings(loadFile(mAppSettingsPath));
+        if (optAppSettings)
+        {
+          applyAppSettings(optAppSettings.get());
+        }
+      }
+      // load warp settings from file if one exists
+      if (fs::exists(mWarpSettingsPath))
+      {
+        mWarps = Warp::readSettings(loadFile(mWarpSettingsPath));
+      }
+      break;
     case KeyEvent::KEY_o:
     {
       // open a movie from user-selected path
@@ -251,6 +287,9 @@ void HapPlayerMultiscreenWarpApp::keyDown(KeyEvent event)
     case KeyEvent::KEY_w:
       // toggle warp edit mode
       Warp::enableEditMode(!Warp::isEditModeEnabled());
+      break;
+    case KeyEvent::KEY_RETURN:
+      mWarps.push_back(WarpPerspective::create());
       break;
     //case KeyEvent::KEY_a:
     //  // toggle drawing a random region of the image
@@ -333,6 +372,9 @@ void HapPlayerMultiscreenWarpApp::drawMovie()
     if (mMovie)
     {
       auto movieTex = mMovie->getTexture();
+      if (!movieTex)
+        return;
+
       Rectf centeredRect = Rectf(mMovie->getBounds()).getCenteredFit(app::getWindowBounds(), true);
 
       float cw = movieTex->getActualWidth();
@@ -378,6 +420,83 @@ void HapPlayerMultiscreenWarpApp::drawMovie()
     }
   }
 #endif
+}
+
+optional<AppSettings> HapPlayerMultiscreenWarpApp::readSettings(const ci::DataSourceRef& source)
+{
+  XmlTree  doc;
+  AppSettings result;
+
+  // try to load the specified xml file
+  try {
+    doc = XmlTree(source);
+  }
+  catch (...) {
+    return optional<AppSettings>();
+  }
+
+  // check if this is a valid file
+  bool isAppConfig = doc.hasChild("appconfig");
+  if (!isAppConfig)
+    return optional<AppSettings>();
+
+  // get first window
+  XmlTree windowXml = doc.getChild("appconfig/window");
+
+  XmlTree positionXml = windowXml.getChild("position");
+  XmlTree sizeXml = windowXml.getChild("size");
+
+  result.mWindowPos.x = positionXml.getAttributeValue<int>("x", 0);
+  result.mWindowPos.y = positionXml.getAttributeValue<int>("y", 0);
+
+  result.mWindowSize.x = sizeXml.getAttributeValue<int>("w", 0);
+  result.mWindowSize.y = sizeXml.getAttributeValue<int>("h", 0);
+
+  return result;
+}
+
+void HapPlayerMultiscreenWarpApp::writeSettings(const AppSettings& appSettings, const ci::DataTargetRef& target)
+{
+  XmlTree window;
+  window.setTag("window");
+
+  XmlTree pos;
+  pos.setTag("position");
+  pos.setAttribute("x", appSettings.mWindowPos.x);
+  pos.setAttribute("y", appSettings.mWindowPos.y);
+
+  XmlTree res;
+  res.setTag("size");
+  res.setAttribute("w", appSettings.mWindowSize.x);
+  res.setAttribute("h", appSettings.mWindowSize.y);
+
+  window.push_back(pos);
+  window.push_back(res);
+
+  // create config document and root <warpconfig>
+  XmlTree doc;
+  doc.setTag("appconfig");
+  doc.setAttribute("version", "1.0");
+
+  // add profile to root
+  doc.push_back(window);
+
+  // write file
+  doc.write(target);
+}
+
+AppSettings HapPlayerMultiscreenWarpApp::getCurrentAppSettings() const
+{
+  AppSettings result;
+  result.mWindowPos = getWindow()->getPos();
+  result.mWindowSize = getWindow()->getSize();
+  return result;
+}
+
+void HapPlayerMultiscreenWarpApp::applyAppSettings(const AppSettings& appSettings)
+{
+  getWindow()->setPos(appSettings.mWindowPos);
+  getWindow()->setSize(appSettings.mWindowSize);
 }
 
 CINDER_APP(HapPlayerMultiscreenWarpApp,
