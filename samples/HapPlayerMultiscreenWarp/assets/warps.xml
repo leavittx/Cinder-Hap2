@@ -3,10 +3,23 @@
 	<profile name="default">
 		<map id="1" display="1">
 			<warp method="perspective" width="2" height="2" brightness="1">
-				<controlpoint x="0" y="0"/>
-				<controlpoint x="1" y="0"/>
-				<controlpoint x="0.773860157" y="0.817632854"/>
-				<controlpoint x="0" y="1"/>
+				<controlpoint x="0.189062506" y="0.208333328"/>
+				<controlpoint x="0.462406009" y="0.317725748"/>
+				<controlpoint x="0.475563914" y="0.630434811"/>
+				<controlpoint x="0.114661656" y="0.61371237"/>
+				<blend exponent="2">
+					<edges left="0" top="0" right="0" bottom="0"/>
+					<gamma red="1" green="1" blue="1"/>
+					<luminance red="0.5" green="0.5" blue="0.5"/>
+				</blend>
+			</warp>
+		</map>
+		<map id="2" display="1">
+			<warp method="perspective" width="2" height="2" brightness="1">
+				<controlpoint x="0.531015038" y="0.210702345"/>
+				<controlpoint x="0.99060148" y="0.14882943"/>
+				<controlpoint x="0.882518768" y="0.847826064"/>
+				<controlpoint x="0.539473712" y="0.794314384"/>
 				<blend exponent="2">
 					<edges left="0" top="0" right="0" bottom="0"/>
 					<gamma red="1" green="1" blue="1"/>

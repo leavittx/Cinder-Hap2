@@ -1,3 +1,8 @@
+// TODO: 
+// 1. savable per-warp uv settings
+// 2. use fast mov reader (vux)
+// 3. play sequence of dxt compressed files
+
 #include "boost/optional.hpp"
 
 #include "cinder/app/App.h"
@@ -64,6 +69,7 @@ private:
   static void writeSettings(const AppSettings& appSettings, const ci::DataTargetRef &target);
   AppSettings getCurrentAppSettings() const;
   void applyAppSettings(const AppSettings& appSettings);
+  void createPerspectiveWarp();
 
 private:
   // Hap video playback
@@ -114,9 +120,7 @@ void HapPlayerMultiscreenWarpApp::setup()
   // Initialize warps
   mWarpSettingsPath = getAssetPath("") / "warps.xml";
   // Otherwise create a single warp from scratch
-  //mWarps.push_back(WarpBilinear::create());
-  mWarps.push_back(WarpPerspective::create());
-  //mWarps.push_back(WarpPerspectiveBilinear::create());
+  createPerspectiveWarp();
 
   // Load help image
   try 
@@ -151,12 +155,12 @@ void HapPlayerMultiscreenWarpApp::draw()
   gl::enableAlphaBlending();
   gl::viewport(toPixels(getWindowSize()));
 
-  //// draw grid
-  //ivec2 sz = getWindowSize() / ivec2(8, 6);
-  //gl::color(Color::gray(0.2f));
-  //for (int x = 0; x < 8; x++)
-  //  for (int y = (x % 2 ? 0 : 1); y < 6; y += 2)
-  //    gl::drawSolidRect(Rectf(0.0f, 0.0f, sz.x, sz.y) + sz * ivec2(x, y));
+  // draw grid
+  ivec2 sz = getWindowSize() / ivec2(8, 6);
+  gl::color(Color::gray(0.2f));
+  for (int x = 0; x < 8; x++)
+    for (int y = (x % 2 ? 0 : 1); y < 6; y += 2)
+      gl::drawSolidRect(Rectf(0.0f, 0.0f, sz.x, sz.y) + sz * ivec2(x, y));
 
   mPerfTracker->startFrame();
   drawMovie();
@@ -266,6 +270,7 @@ void HapPlayerMultiscreenWarpApp::keyDown(KeyEvent event)
       if (fs::exists(mWarpSettingsPath))
       {
         mWarps = Warp::readSettings(loadFile(mWarpSettingsPath));
+        getWindow()->emitResize();
       }
       break;
     case KeyEvent::KEY_o:
@@ -289,7 +294,7 @@ void HapPlayerMultiscreenWarpApp::keyDown(KeyEvent event)
       Warp::enableEditMode(!Warp::isEditModeEnabled());
       break;
     case KeyEvent::KEY_RETURN:
-      mWarps.push_back(WarpPerspective::create());
+      createPerspectiveWarp();
       break;
     //case KeyEvent::KEY_a:
     //  // toggle drawing a random region of the image
@@ -497,6 +502,32 @@ void HapPlayerMultiscreenWarpApp::applyAppSettings(const AppSettings& appSetting
 {
   getWindow()->setPos(appSettings.mWindowPos);
   getWindow()->setSize(appSettings.mWindowSize);
+  getWindow()->emitResize();
+}
+
+void HapPlayerMultiscreenWarpApp::createPerspectiveWarp()
+{
+  //mWarps.push_back(WarpBilinear::create());
+  //mWarps.push_back(WarpPerspectiveBilinear::create());
+
+  WarpPerspectiveRef warpNew = nullptr;
+  //for (int i = mWarps.size() - 1; i >= 0; --i)
+  for (int i = 0; i < mWarps.size(); ++i)
+  {
+    if (auto* warpPerspective = dynamic_cast<WarpPerspective*>(mWarps[i].get()))
+    {
+      warpNew = WarpPerspective::create(*warpPerspective);
+    }
+  }
+
+  if (warpNew == nullptr)
+  {
+    warpNew = WarpPerspective::create();
+  }
+
+  warpNew->resize();
+
+  mWarps.push_back(warpNew);
 }
 
 CINDER_APP(HapPlayerMultiscreenWarpApp,
