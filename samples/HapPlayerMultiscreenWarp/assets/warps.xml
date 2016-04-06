@@ -3,10 +3,11 @@
 	<profile name="default">
 		<map id="1" display="1">
 			<warp method="perspective" width="2" height="2" brightness="1">
-				<controlpoint x="0.189062506" y="0.208333328"/>
-				<controlpoint x="0.462406009" y="0.317725748"/>
-				<controlpoint x="0.475563914" y="0.630434811"/>
-				<controlpoint x="0.114661656" y="0.61371237"/>
+				<texture_src_area x0="0" y0="0" x1="1920" y1="1080"/>
+				<controlpoint x="0.0127604166" y="0.035950806"/>
+				<controlpoint x="0.116145834" y="0.0435193963"/>
+				<controlpoint x="0.113867186" y="0.854304612"/>
+				<controlpoint x="0.0135416668" y="0.891201496"/>
 				<blend exponent="2">
 					<edges left="0" top="0" right="0" bottom="0"/>
 					<gamma red="1" green="1" blue="1"/>
@@ -16,10 +17,67 @@
 		</map>
 		<map id="2" display="1">
 			<warp method="perspective" width="2" height="2" brightness="1">
-				<controlpoint x="0.531015038" y="0.210702345"/>
-				<controlpoint x="0.99060148" y="0.14882943"/>
-				<controlpoint x="0.882518768" y="0.847826064"/>
-				<controlpoint x="0.539473712" y="0.794314384"/>
+				<texture_src_area x0="1920" y0="0" x1="3840" y1="1080"/>
+				<controlpoint x="0.131705731" y="0.0274361409"/>
+				<controlpoint x="0.244466141" y="0.035950806"/>
+				<controlpoint x="0.244075522" y="0.902554393"/>
+				<controlpoint x="0.13261719" y="0.897824049"/>
+				<blend exponent="2">
+					<edges left="0" top="0" right="0" bottom="0"/>
+					<gamma red="1" green="1" blue="1"/>
+					<luminance red="0.5" green="0.5" blue="0.5"/>
+				</blend>
+			</warp>
+		</map>
+		<map id="3" display="1">
+			<warp method="perspective" width="2" height="2" brightness="1">
+				<texture_src_area x0="0" y0="1080" x1="1920" y1="2160"/>
+				<controlpoint x="0.260481775" y="0.0510879867"/>
+				<controlpoint x="0.367252618" y="0.0387890264"/>
+				<controlpoint x="0.368164063" y="0.925260186"/>
+				<controlpoint x="0.259505212" y="0.938505232"/>
+				<blend exponent="2">
+					<edges left="0" top="0" right="0" bottom="0"/>
+					<gamma red="1" green="1" blue="1"/>
+					<luminance red="0.5" green="0.5" blue="0.5"/>
+				</blend>
+			</warp>
+		</map>
+		<map id="4" display="1">
+			<warp method="perspective" width="2" height="2" brightness="1">
+				<texture_src_area x0="1920" y0="1080" x1="3840" y1="2160"/>
+				<controlpoint x="0.383789063" y="0.0482497625"/>
+				<controlpoint x="0.492643237" y="0.0416272469"/>
+				<controlpoint x="0.493164063" y="0.920529783"/>
+				<controlpoint x="0.382226557" y="0.898770094"/>
+				<blend exponent="2">
+					<edges left="0" top="0" right="0" bottom="0"/>
+					<gamma red="1" green="1" blue="1"/>
+					<luminance red="0.5" green="0.5" blue="0.5"/>
+				</blend>
+			</warp>
+		</map>
+		<map id="5" display="1">
+			<warp method="perspective" width="2" height="2" brightness="1">
+				<texture_src_area x0="1920" y0="2160" x1="3840" y1="3240"/>
+				<controlpoint x="0.515641272" y="0.17037037"/>
+				<controlpoint x="0.611053169" y="0.166666672"/>
+				<controlpoint x="0.613138676" y="0.848148167"/>
+				<controlpoint x="0.516423345" y="0.874074101"/>
+				<blend exponent="2">
+					<edges left="0" top="0" right="0" bottom="0"/>
+					<gamma red="1" green="1" blue="1"/>
+					<luminance red="0.5" green="0.5" blue="0.5"/>
+				</blend>
+			</warp>
+		</map>
+		<map id="6" display="1">
+			<warp method="perspective" width="2" height="2" brightness="1">
+				<texture_src_area x0="0" y0="2160" x1="1920" y1="3240"/>
+				<controlpoint x="0.632747412" y="0.160832539"/>
+				<controlpoint x="0.745768249" y="0.140018925"/>
+				<controlpoint x="0.746679664" y="0.98202461"/>
+				<controlpoint x="0.632486999" y="0.991485357"/>
 				<blend exponent="2">
 					<edges left="0" top="0" right="0" bottom="0"/>
 					<gamma red="1" green="1" blue="1"/>

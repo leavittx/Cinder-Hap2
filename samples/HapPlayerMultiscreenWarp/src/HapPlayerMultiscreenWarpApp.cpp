@@ -371,9 +371,23 @@ void HapPlayerMultiscreenWarpApp::drawMovie()
   }
 #endif
 
-  // iterate over the warps and draw their content
-  for (auto& warp : mWarps) 
+  //// iterate over the warps and draw their content
+  //vector<Area> srcAreas = {
+  //  Area(ivec2(0,       0), ivec2(1920, 1080)),  // Left
+  //  Area(ivec2(1920,    0), ivec2(3840, 1080)),  // Right
+  //  Area(ivec2(0,    1080), ivec2(1920, 2160)),  // Forward
+  //  Area(ivec2(1920, 1080), ivec2(3840, 2160)),  // Backward
+  //  Area(ivec2(1920, 2160), ivec2(3840, 3240)),  // Bottom
+  //  Area(ivec2(0,    2160), ivec2(1920, 3240)),  // Top
+  //  Area(ivec2(1920, 2160), ivec2(3840, 3240)),  // Bottom
+  //  Area(ivec2(0,    2160), ivec2(1920, 3240)),  // Top
+  //};
+
+  for (int i = 0; i < mWarps.size(); ++i)
   {
+    auto& warp = mWarps[i];
+    //warp->setSrcArea(srcAreas[i % srcAreas.size()]);
+
     if (mMovie)
     {
       auto movieTex = mMovie->getTexture();
@@ -387,10 +401,12 @@ void HapPlayerMultiscreenWarpApp::drawMovie()
       float w = movieTex->getWidth();
       float h = movieTex->getHeight();
 
-      //auto srcArea = Area(vec2(0, 0), vec2(w / cw, h / ch));
-      auto srcArea = Area(vec2(0, 0), vec2(w, h));
+      //auto srcArea = Area(ivec2(0, 0), ivec2(w / cw, h / ch));
+      //auto srcArea = Area(ivec2(0, 0), ivec2(w, h));
+      //auto& srcArea = srcAreas[i % srcAreas.size()];
+      //warp->draw(movieTex, srcArea);
 
-      warp->draw(movieTex, srcArea);
+      warp->draw(movieTex);
     }
     else if (mHelpImage)
     {
