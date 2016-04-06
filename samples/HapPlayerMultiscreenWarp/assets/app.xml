@@ -4,5 +4,6 @@
 		<position x="0" y="300"/>
 		<size w="3836" h="270"/>
 	</window>
+	<movie audio_enabled="0" volume="0.7"/>
 </appconfig>
 

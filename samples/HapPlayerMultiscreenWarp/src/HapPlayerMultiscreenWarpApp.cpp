@@ -34,8 +34,17 @@ template <typename T> string tostr(const T& t, int p) { ostringstream os; os << 
 
 struct AppSettings
 {
+  AppSettings()
+    : mAudioEnabled(true)
+    , mVolume(0.7f)
+  {
+  }
+
   ivec2 mWindowPos;
   ivec2 mWindowSize;
+
+  bool mAudioEnabled;
+  float mVolume;
 };
 
 class HapPlayerMultiscreenWarpApp : public App
@@ -64,10 +73,11 @@ public:
 private:
   void loadMovieFile(const fs::path &path);
   void drawMovie();
+  void updateMovieVolume();
 
   static optional<AppSettings> readSettings(const ci::DataSourceRef &source);
   static void writeSettings(const AppSettings& appSettings, const ci::DataTargetRef &target);
-  AppSettings getCurrentAppSettings() const;
+  AppSettings getCurrentAppSettings();
   void applyAppSettings(const AppSettings& appSettings);
   void createPerspectiveWarp();
 
@@ -75,6 +85,7 @@ private:
   // Hap video playback
   gl::TextureRef mInfoTexture;
   qtime::MovieGlHapRef mMovie;
+  AppSettings mAppSettings;
 
   // Performance tracker
   PerfTrackerRef mPerfTracker;
@@ -91,7 +102,8 @@ private:
 };
 
 HapPlayerMultiscreenWarpApp::HapPlayerMultiscreenWarpApp()
-  : mPerfTrackerVisible(false)
+  : mAppSettings()
+  , mPerfTrackerVisible(false)
   , mUseBeginEnd(false)
 {
 }
@@ -296,6 +308,10 @@ void HapPlayerMultiscreenWarpApp::keyDown(KeyEvent event)
     case KeyEvent::KEY_RETURN:
       createPerspectiveWarp();
       break;
+    case KeyEvent::KEY_m:
+      mAppSettings.mAudioEnabled = !mAppSettings.mAudioEnabled;
+      updateMovieVolume();
+      break;
     //case KeyEvent::KEY_a:
     //  // toggle drawing a random region of the image
     //  if (mSrcArea.getWidth() != mImage->getWidth() || mSrcArea.getHeight() != mImage->getHeight())
@@ -334,9 +350,10 @@ void HapPlayerMultiscreenWarpApp::loadMovieFile(const fs::path &moviePath)
 {
   try
   {
-    mMovie.reset();
     // load up the movie, set it to loop, and begin playing
+    mMovie.reset();
     mMovie = qtime::MovieGlHap::create(moviePath);
+    updateMovieVolume();
     mMovie->setLoop();
     mMovie->play();
 
@@ -443,6 +460,12 @@ void HapPlayerMultiscreenWarpApp::drawMovie()
 #endif
 }
 
+void HapPlayerMultiscreenWarpApp::updateMovieVolume()
+{
+  if (mMovie)
+    mMovie->setVolume(mAppSettings.mVolume * static_cast<float>(mAppSettings.mAudioEnabled));
+}
+
 optional<AppSettings> HapPlayerMultiscreenWarpApp::readSettings(const ci::DataSourceRef& source)
 {
   XmlTree  doc;
@@ -462,63 +485,99 @@ optional<AppSettings> HapPlayerMultiscreenWarpApp::readSettings(const ci::DataSo
     return optional<AppSettings>();
 
   // get first window
-  XmlTree windowXml = doc.getChild("appconfig/window");
+  auto windowXml = doc.find("appconfig/window");
+  if (windowXml != doc.end())
+  {
+    auto positionXml = windowXml->find("position");
+    if (positionXml != windowXml->end())
+    {
+      result.mWindowPos.x = positionXml->getAttributeValue<int>("x", 0);
+      result.mWindowPos.y = positionXml->getAttributeValue<int>("y", 0);
+    }
 
-  XmlTree positionXml = windowXml.getChild("position");
-  XmlTree sizeXml = windowXml.getChild("size");
+    auto sizeXml = windowXml->find("size");
+    if (sizeXml != windowXml->end())
+    {
+      result.mWindowSize.x = sizeXml->getAttributeValue<int>("w", 0);
+      result.mWindowSize.y = sizeXml->getAttributeValue<int>("h", 0);
+    }
+  }
 
-  result.mWindowPos.x = positionXml.getAttributeValue<int>("x", 0);
-  result.mWindowPos.y = positionXml.getAttributeValue<int>("y", 0);
-
-  result.mWindowSize.x = sizeXml.getAttributeValue<int>("w", 0);
-  result.mWindowSize.y = sizeXml.getAttributeValue<int>("h", 0);
+  // read movie settings 
+  auto movieXml = doc.find("appconfig/movie");
+  if (movieXml != doc.end())
+  {
+    result.mAudioEnabled = movieXml->getAttributeValue<bool>("audio_enabled", true);
+    result.mVolume = movieXml->getAttributeValue<float>("volume", 0.7f);
+  }
 
   return result;
 }
 
 void HapPlayerMultiscreenWarpApp::writeSettings(const AppSettings& appSettings, const ci::DataTargetRef& target)
 {
-  XmlTree window;
-  window.setTag("window");
+  auto window = [&]()
+  {
+    XmlTree result;
+    result.setTag("window");
 
-  XmlTree pos;
-  pos.setTag("position");
-  pos.setAttribute("x", appSettings.mWindowPos.x);
-  pos.setAttribute("y", appSettings.mWindowPos.y);
+    XmlTree pos;
+    pos.setTag("position");
+    pos.setAttribute("x", appSettings.mWindowPos.x);
+    pos.setAttribute("y", appSettings.mWindowPos.y);
+    result.push_back(pos);
 
-  XmlTree res;
-  res.setTag("size");
-  res.setAttribute("w", appSettings.mWindowSize.x);
-  res.setAttribute("h", appSettings.mWindowSize.y);
+    XmlTree res;
+    res.setTag("size");
+    res.setAttribute("w", appSettings.mWindowSize.x);
+    res.setAttribute("h", appSettings.mWindowSize.y);
+    result.push_back(res);
 
-  window.push_back(pos);
-  window.push_back(res);
+    return result;
+  }();
+
+  auto movie = [&]()
+  {
+    XmlTree result;
+    result.setTag("movie");
+    result.setAttribute("audio_enabled", appSettings.mAudioEnabled);
+    result.setAttribute("volume", appSettings.mVolume);
+
+    return result;
+  }();
 
   // create config document and root <warpconfig>
   XmlTree doc;
   doc.setTag("appconfig");
   doc.setAttribute("version", "1.0");
 
-  // add profile to root
+  // add all elements to root
   doc.push_back(window);
+  doc.push_back(movie);
 
   // write file
   doc.write(target);
 }
 
-AppSettings HapPlayerMultiscreenWarpApp::getCurrentAppSettings() const
+AppSettings HapPlayerMultiscreenWarpApp::getCurrentAppSettings()
 {
-  AppSettings result;
-  result.mWindowPos = getWindow()->getPos();
-  result.mWindowSize = getWindow()->getSize();
-  return result;
+  mAppSettings.mWindowPos = getWindow()->getPos();
+  mAppSettings.mWindowSize = getWindow()->getSize();
+
+  // Everything else should be up to date
+
+  return mAppSettings;
 }
 
 void HapPlayerMultiscreenWarpApp::applyAppSettings(const AppSettings& appSettings)
 {
-  getWindow()->setPos(appSettings.mWindowPos);
-  getWindow()->setSize(appSettings.mWindowSize);
+  mAppSettings = appSettings;
+
+  getWindow()->setPos(mAppSettings.mWindowPos);
+  getWindow()->setSize(mAppSettings.mWindowSize);
   getWindow()->emitResize();
+
+  updateMovieVolume();
 }
 
 void HapPlayerMultiscreenWarpApp::createPerspectiveWarp()
