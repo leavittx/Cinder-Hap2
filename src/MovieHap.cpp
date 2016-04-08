@@ -62,15 +62,16 @@ namespace cinder { namespace qtime {
 	
 	void updateMovieFPS( long time, void *ptr )
 	{
-		double now = app::getElapsedSeconds();
-		if( now > _FpsLastSampleTime + app::App::get()->getFpsSampleInterval() ) {
-			//calculate average Fps over sample interval
-			uint32_t framesPassed = _FrameCount - _FpsLastSampleFrame;
-			_AverageFps = (float)(framesPassed / (now - _FpsLastSampleTime));
-			_FpsLastSampleTime = now;
-			_FpsLastSampleFrame = _FrameCount;
-		}
-		_FrameCount++;
+    // FIXME: crashes
+ 		//double now = app::getElapsedSeconds();
+		//if( now > _FpsLastSampleTime + app::App::get()->getFpsSampleInterval() ) {
+		//	//calculate average Fps over sample interval
+		//	uint32_t framesPassed = _FrameCount - _FpsLastSampleFrame;
+		//	_AverageFps = (float)(framesPassed / (now - _FpsLastSampleTime));
+		//	_FpsLastSampleTime = now;
+		//	_FpsLastSampleFrame = _FrameCount;
+		//}
+		//_FrameCount++;
 	}
 	
 	float MovieGlHap::getPlaybackFramerate() const
@@ -82,29 +83,32 @@ namespace cinder { namespace qtime {
 	
 	MovieGlHap::Obj::Obj()
 	: MovieBase::Obj()
-	, mDefaultShader( gl::getStockShader( gl::ShaderDef().texture() ) )
+  //, mDefaultShader( gl::getStockShader( gl::ShaderDef().texture() ) )
+  , mUnityTexture(nullptr)
+  , mUnityMode(UnityMode::OpenGl)
 	{
-		std::call_once( mHapQOnceFlag, []() {
-			MovieGlHap::Obj::sHapQShader = gl::GlslProg::create( app::loadResource(RES_HAP_VERT),  app::loadResource(RES_HAP_FRAG) );
-		} );
+		//std::call_once( mHapQOnceFlag, []() {
+		//	MovieGlHap::Obj::sHapQShader = gl::GlslProg::create( app::loadResource(RES_HAP_VERT),  app::loadResource(RES_HAP_FRAG) );
+		//} );
 
-    // Just make sure that TexCoord is in there
-    auto rectAttribSet = geom::Rect().getAvailableAttribs();
-    if (rectAttribSet.count(geom::TEX_COORD_0) == 0)
-    {
-      //ExitProcess(0);
-    }
+    //// Just make sure that TexCoord is in there
+    //auto rectAttribSet = geom::Rect().getAvailableAttribs();
+    //if (rectAttribSet.count(geom::TEX_COORD_0) == 0)
+    //{
+    //  //ExitProcess(0);
+    //}
 
-    Rectf fsQuad(-1.0f, -1.0f, 1.0f, 1.0f);
-    mFullscreenQuadDefaultBatch = gl::Batch::create(geom::Rect(fsQuad), mDefaultShader);
-    mFullscreenQuadHapQBatch = gl::Batch::create(geom::Rect(fsQuad), MovieGlHap::Obj::sHapQShader);
+    //Rectf fsQuad(-1.0f, -1.0f, 1.0f, 1.0f);
+    //mFullscreenQuadDefaultBatch = gl::Batch::create(geom::Rect(fsQuad), mDefaultShader);
+    //mFullscreenQuadHapQBatch = gl::Batch::create(geom::Rect(fsQuad), MovieGlHap::Obj::sHapQShader);
 	}
 	
 	MovieGlHap::Obj::~Obj()
 	{
 		// see note on prepareForDestruction()
 		prepareForDestruction();
-		mTexture.reset();
+		if (mTexture)
+      mTexture.reset();
 	}
 	
 	
@@ -135,10 +139,25 @@ namespace cinder { namespace qtime {
 		MovieBase::initFromDataSource( dataSource, mimeTypeHint );
 		allocateVisualContext();
 	}
-	
-	MovieGlHap::~MovieGlHap()
+
+  bool MovieGlHap::setUnityTexture(void* unityTexture, int w, int h)
+  {
+    // FIXME: check size
+
+    assert(unityTexture != nullptr);
+    mObj->mUnityTexture = unityTexture;
+
+    return true;
+  }
+
+  void MovieGlHap::updateUnityTexture()
+  {
+    updateFrame();
+  }
+
+  MovieGlHap::~MovieGlHap()
 	{
-		CI_LOG_I( "Detroying movie hap." );
+		//CI_LOG_I( "Detroying movie hap." );
 	}
 
 	void MovieGlHap::allocateVisualContext()
@@ -259,48 +278,117 @@ namespace cinder { namespace qtime {
 			CI_ASSERT( dataLength < actualBufferSize );
 			
 			GLvoid *baseAddress = ::CVPixelBufferGetBaseAddress( cvImage );
-						
-			if ( !mTexture ) {
-				// On NVIDIA hardware there is a massive slowdown if DXT textures aren't POT-dimensioned, so we use POT-dimensioned backing
-				GLuint backingWidth = 1;
-				while (backingWidth < roundedWidth) backingWidth <<= 1;
-				
-				GLuint backingHeight = 1;
-				while (backingHeight < roundedHeight) backingHeight <<= 1;
-				
-				// We allocate the texture with no pixel data, then use CompressedTexSubImage to update the content region
-				gl::Texture2d::Format format;
-				format.wrap( GL_CLAMP_TO_EDGE ).magFilter( GL_LINEAR ).minFilter( GL_LINEAR ).internalFormat( internalFormat ).dataType( GL_UNSIGNED_INT_8_8_8_8_REV ).immutableStorage();// .pixelDataFormat( GL_BGRA );
-				mTexture = gl::Texture2d::create( backingWidth, backingHeight, format );
-				mTexture->setCleanBounds( Area(0, 0, width, height) );
-				
-				CI_LOG_I( "Created texture." );
-				
+
+      if (mUnityTexture)
+      {
+        if (mUnityMode == UnityMode::OpenGl)
+        {
+          GLuint textureId = (GLuint)(size_t)(mUnityTexture);
+
+          auto getErrorString = [](GLenum err) -> std::string
+          {
+            switch (err) {
+            case GL_NO_ERROR:
+              return "GL_NO_ERROR";
+            case GL_INVALID_ENUM:
+              return "GL_INVALID_ENUM";
+            case GL_INVALID_VALUE:
+              return "GL_INVALID_VALUE";
+            case GL_INVALID_OPERATION:
+              return "GL_INVALID_OPERATION";
+            case GL_INVALID_FRAMEBUFFER_OPERATION:
+              return "GL_INVALID_FRAMEBUFFER_OPERATION";
+            case GL_OUT_OF_MEMORY:
+              return "GL_OUT_OF_MEMORY";
+            default:
+              return "";
+            }
+          };
+
+          // FIXME: crashes
+          //gl::ScopedTextureBind bind(GL_TEXTURE_2D, textureId);
+
+          //glEnable(GL_TEXTURE_2D);
+          auto error = getErrorString(glGetError());
+
+          glBindTexture(GL_TEXTURE_2D, textureId);
+          error = getErrorString(glGetError());
+
+          GLint mInternalFormat;
+          glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT, &mInternalFormat);
+          assert(mInternalFormat == GL_COMPRESSED_RGB_S3TC_DXT1_EXT);
+          error = getErrorString(glGetError());
+          
+          GLint mCompressed;
+          glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED, &mCompressed);
+          assert(mCompressed == 1);
+          error = getErrorString(glGetError());
+
+          glCompressedTexSubImage2D(GL_TEXTURE_2D,
+                                    0,
+                                    0,
+                                    0,
+                                    roundedWidth,
+                                    roundedHeight,
+                                    GL_COMPRESSED_RGB_S3TC_DXT1_EXT,
+                                    dataLength,
+                                    baseAddress);
+          error = getErrorString(glGetError());
+          //glBindTexture(GL_TEXTURE_2D, 0);
+          //glDisable(GL_TEXTURE_2D);
+        }
+        else if (mUnityMode == UnityMode::D3D11)
+        {
+          // TODO
+        }
+      }
+			else 
+      {
+        if (!mTexture)
+        {
+          // On NVIDIA hardware there is a massive slowdown if DXT textures aren't POT-dimensioned, so we use POT-dimensioned backing
+          GLuint backingWidth = 1;
+          while (backingWidth < roundedWidth) backingWidth <<= 1;
+
+          GLuint backingHeight = 1;
+          while (backingHeight < roundedHeight) backingHeight <<= 1;
+
+          // We allocate the texture with no pixel data, then use CompressedTexSubImage to update the content region
+          gl::Texture2d::Format format;
+          format.wrap(GL_CLAMP_TO_EDGE).magFilter(GL_LINEAR).minFilter(GL_LINEAR).internalFormat(internalFormat).dataType(GL_UNSIGNED_INT_8_8_8_8_REV).immutableStorage();// .pixelDataFormat( GL_BGRA );
+          mTexture = gl::Texture2d::create(backingWidth, backingHeight, format);
+          mTexture->setCleanBounds(Area(0, 0, width, height));
+
+          //CI_LOG_I("Created texture.");
+
 #if defined( CINDER_MAC )
-				/// There is no default format GL_TEXTURE_STORAGE_HINT_APPLE param so we fill it manually
-				gl::ScopedTextureBind bind( mTexture->getTarget(), mTexture->getId() );
-				glTexParameteri( mTexture->getTarget(), GL_TEXTURE_STORAGE_HINT_APPLE, GL_STORAGE_SHARED_APPLE );
+          /// There is no default format GL_TEXTURE_STORAGE_HINT_APPLE param so we fill it manually
+          gl::ScopedTextureBind bind( mTexture->getTarget(), mTexture->getId() );
+          glTexParameteri( mTexture->getTarget(), GL_TEXTURE_STORAGE_HINT_APPLE, GL_STORAGE_SHARED_APPLE );
 #endif
-			}
-			gl::ScopedTextureBind bind( mTexture );
+        }
+
+        gl::ScopedTextureBind bind( mTexture );
 #if defined( CINDER_MAC )
-			glTextureRangeAPPLE( mTexture->getTarget(), dataLength, baseAddress );
-			/* WARNING: Even though it is present here:
-			 * https://github.com/Vidvox/hap-quicktime-playback-demo/blob/master/HapQuickTimePlayback/HapPixelBufferTexture.m#L186
-			 * the following call does not appear necessary. Furthermore, it corrupts display
-			 * when movies are loaded more than once
-			 */
-//			glPixelStorei( GL_UNPACK_CLIENT_STORAGE_APPLE, 1 );
+			  glTextureRangeAPPLE( mTexture->getTarget(), dataLength, baseAddress );
+			  /* WARNING: Even though it is present here:
+			   * https://github.com/Vidvox/hap-quicktime-playback-demo/blob/master/HapQuickTimePlayback/HapPixelBufferTexture.m#L186
+			   * the following call does not appear necessary. Furthermore, it corrupts display
+			   * when movies are loaded more than once
+			   */
+  //			glPixelStorei( GL_UNPACK_CLIENT_STORAGE_APPLE, 1 );
 #endif
-			glCompressedTexSubImage2D(mTexture->getTarget(),
-									  0,
-									  0,
-									  0,
-									  roundedWidth,
-									  roundedHeight,
-									  mTexture->getInternalFormat(),
-									  dataLength,
-									  baseAddress);
+        auto internalFormat = mTexture->getInternalFormat();
+			  glCompressedTexSubImage2D(mTexture->getTarget(),
+									                0,
+									                0,
+									                0,
+									                roundedWidth,
+									                roundedHeight,
+									                mTexture->getInternalFormat(),
+									                dataLength,
+									                baseAddress);
+        }
 		}
 		
 		::CVPixelBufferUnlockBaseAddress( cvImage, kCVPixelBufferLock_ReadOnly );

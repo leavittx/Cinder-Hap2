@@ -1,0 +1,12 @@
+LIBRARY
+
+EXPORTS
+   UnityPluginLoad
+   UnityPluginUnload
+   SetTimeFromUnity
+   HapMovieLoadFromUnity
+   HapMovieSetLoopFromUnity
+   HapMoviePlayFromUnity
+   SetTextureFromUnity
+   SetUnityStreamingAssetsPath
+   GetRenderEventFunc
