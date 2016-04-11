@@ -84,8 +84,7 @@ namespace cinder { namespace qtime {
 	MovieGlHap::Obj::Obj()
 	: MovieBase::Obj()
   //, mDefaultShader( gl::getStockShader( gl::ShaderDef().texture() ) )
-  , mUnityTexture(nullptr)
-  , mUnityMode(UnityMode::OpenGl)
+  , mTextureUpdateFunc(nullptr)
 	{
 		//std::call_once( mHapQOnceFlag, []() {
 		//	MovieGlHap::Obj::sHapQShader = gl::GlslProg::create( app::loadResource(RES_HAP_VERT),  app::loadResource(RES_HAP_FRAG) );
@@ -140,18 +139,12 @@ namespace cinder { namespace qtime {
 		allocateVisualContext();
 	}
 
-  bool MovieGlHap::setUnityTexture(void* unityTexture, int w, int h)
+  void MovieGlHap::updateTextureIfNeeded(TextureUpdateFunc textureUpdateFunc)
   {
-    // FIXME: check size
+    mObj->lock();
+    mObj->mTextureUpdateFunc = textureUpdateFunc;
+    mObj->unlock();
 
-    assert(unityTexture != nullptr);
-    mObj->mUnityTexture = unityTexture;
-
-    return true;
-  }
-
-  void MovieGlHap::updateUnityTexture()
-  {
     updateFrame();
   }
 
@@ -194,7 +187,7 @@ namespace cinder { namespace qtime {
             Track track = GetMovieIndTrack(getObj()->mMovie, i);
             Media media = GetTrackMedia(track);
             OSType mediaType;
-            GetMediaHandlerDescription(media, &mediaType, NULL, NULL);
+            GetMediaHandlerDescription(media, &mediaType, nullptr, nullptr);
             if (mediaType == VideoMediaType)
             {
                 // Get the codec-type of this track
@@ -240,11 +233,11 @@ namespace cinder { namespace qtime {
 			GLuint width = ::CVPixelBufferGetWidth( cvImage );
 			GLuint height = ::CVPixelBufferGetHeight( cvImage );
 			
-			CI_ASSERT( cvImage != NULL );
+			CI_ASSERT( cvImage != nullptr );
 			
 			// Check the buffer padding
 			size_t extraRight, extraBottom;
-			::CVPixelBufferGetExtendedPixels( cvImage, NULL, &extraRight, NULL, &extraBottom );
+			::CVPixelBufferGetExtendedPixels( cvImage, nullptr, &extraRight, nullptr, &extraBottom );
 			GLuint roundedWidth = width + extraRight;
 			GLuint roundedHeight = height + extraBottom;
 			
@@ -275,72 +268,17 @@ namespace cinder { namespace qtime {
 			size_t	actualBufferSize = ::CVPixelBufferGetDataSize( cvImage );
 			
 			// Check the buffer is as large as we expect it to be
-			CI_ASSERT( dataLength < actualBufferSize );
+			CI_ASSERT( static_cast<size_t>(dataLength) < actualBufferSize );
 			
 			GLvoid *baseAddress = ::CVPixelBufferGetBaseAddress( cvImage );
 
-      if (mUnityTexture)
+      if (mTextureUpdateFunc)
       {
-        if (mUnityMode == UnityMode::OpenGl)
-        {
-          GLuint textureId = (GLuint)(size_t)(mUnityTexture);
+        // Otherwise won't fit into the texture
+        // Will need to make a better texture creation logic for this case
+        assert(extraRight == 0 && extraBottom == 0);
 
-          auto getErrorString = [](GLenum err) -> std::string
-          {
-            switch (err) {
-            case GL_NO_ERROR:
-              return "GL_NO_ERROR";
-            case GL_INVALID_ENUM:
-              return "GL_INVALID_ENUM";
-            case GL_INVALID_VALUE:
-              return "GL_INVALID_VALUE";
-            case GL_INVALID_OPERATION:
-              return "GL_INVALID_OPERATION";
-            case GL_INVALID_FRAMEBUFFER_OPERATION:
-              return "GL_INVALID_FRAMEBUFFER_OPERATION";
-            case GL_OUT_OF_MEMORY:
-              return "GL_OUT_OF_MEMORY";
-            default:
-              return "";
-            }
-          };
-
-          // FIXME: crashes
-          //gl::ScopedTextureBind bind(GL_TEXTURE_2D, textureId);
-
-          //glEnable(GL_TEXTURE_2D);
-          auto error = getErrorString(glGetError());
-
-          glBindTexture(GL_TEXTURE_2D, textureId);
-          error = getErrorString(glGetError());
-
-          GLint mInternalFormat;
-          glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT, &mInternalFormat);
-          assert(mInternalFormat == GL_COMPRESSED_RGB_S3TC_DXT1_EXT);
-          error = getErrorString(glGetError());
-          
-          GLint mCompressed;
-          glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED, &mCompressed);
-          assert(mCompressed == 1);
-          error = getErrorString(glGetError());
-
-          glCompressedTexSubImage2D(GL_TEXTURE_2D,
-                                    0,
-                                    0,
-                                    0,
-                                    roundedWidth,
-                                    roundedHeight,
-                                    GL_COMPRESSED_RGB_S3TC_DXT1_EXT,
-                                    dataLength,
-                                    baseAddress);
-          error = getErrorString(glGetError());
-          //glBindTexture(GL_TEXTURE_2D, 0);
-          //glDisable(GL_TEXTURE_2D);
-        }
-        else if (mUnityMode == UnityMode::D3D11)
-        {
-          // TODO
-        }
+        mTextureUpdateFunc(roundedWidth, roundedHeight, dataLength, baseAddress);
       }
 			else 
       {
@@ -435,10 +373,10 @@ namespace cinder { namespace qtime {
 			auto drawRect = [&]()
       {
 				gl::ScopedTextureBind tex(mObj->mTexture);
-				float cw = mObj->mTexture->getActualWidth();
-				float ch = mObj->mTexture->getActualHeight();
-				float w = mObj->mTexture->getWidth();
-				float h = mObj->mTexture->getHeight();
+				float cw = static_cast<float>(mObj->mTexture->getActualWidth());
+        float ch = static_cast<float>(mObj->mTexture->getActualHeight());
+        float w  = static_cast<float>(mObj->mTexture->getWidth());
+        float h  = static_cast<float>(mObj->mTexture->getHeight());
 				//gl::drawSolidRect(centeredRect , vec2(0, 0), vec2(cw / w, ch / h) );
 
         // No tex coords here?
@@ -468,7 +406,7 @@ namespace cinder { namespace qtime {
     {
       // Indicate that something is wrong
       gl::color(Color(0.0f, 1.0f, 0.0f));;
-      gl::drawSolidRect(Rectf(0, 0, getWidth(), getHeight()), vec2(0, 0));
+      gl::drawSolidRect(app::getWindowBounds(), vec2(0, 0));
     }
 		mObj->unlock();
 	}

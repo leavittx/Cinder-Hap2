@@ -19,6 +19,10 @@
 #endif
 #include "cinder/qtime/QuicktimeGl.h"
 
+
+typedef std::function<void(uint32_t width, uint32_t height, uint32_t dataLength, void* baseAddress)> TextureUpdateFunc;
+
+
 namespace cinder { namespace qtime {
 	
 	typedef std::shared_ptr<class MovieGlHap> MovieGlHapRef;
@@ -33,8 +37,7 @@ namespace cinder { namespace qtime {
 		MovieGlHap( const void *data, size_t dataSize, const std::string &fileNameHint, const std::string &mimeTypeHint = "" );
 		MovieGlHap( DataSourceRef dataSource, const std::string mimeTypeHint = "" );
 		
-    bool setUnityTexture(void* unityTexture, int w, int h);
-    void updateUnityTexture();
+    void updateTextureIfNeeded(TextureUpdateFunc textureUpdateFunc);
 
 		gl::Texture2dRef getTexture();
 		gl::GlslProgRef getGlsl() const;
@@ -58,20 +61,13 @@ namespace cinder { namespace qtime {
 		
 		void allocateVisualContext();
 
-    enum class UnityMode
-    {
-      OpenGl,
-      D3D11
-    };
-
 		struct Obj : public MovieBase::Obj {
 			Obj();
 			~Obj();
 		  void		releaseFrame() override;
 		  void		newFrame( CVImageBufferRef cvImage ) override;
       gl::Texture2dRef	mTexture;
-      void*             mUnityTexture;
-      UnityMode         mUnityMode;
+      TextureUpdateFunc mTextureUpdateFunc;
 			gl::GlslProgRef		mDefaultShader;
 			static gl::GlslProgRef	sHapQShader;
       gl::BatchRef      mFullscreenQuadHapQBatch;

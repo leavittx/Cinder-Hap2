@@ -74,6 +74,9 @@
       <IgnoreSpecificDefaultLibraries>LIBCMT;LIBCPMT</IgnoreSpecificDefaultLibraries>
       <ModuleDefinitionFile>..\src\RenderingPlugin.def</ModuleDefinitionFile>
     </Link>
+    <PostBuildEvent>
+      <Command>copy $(TargetPath) "C:\Users\Lev\projects\Interstellar\Video\RenderingPluginExample53\UnityProject\Assets\Plugins\x86"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -102,7 +105,11 @@
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention />
       <TargetMachine>MachineX86</TargetMachine>
+      <ModuleDefinitionFile>..\src\RenderingPlugin.def</ModuleDefinitionFile>
     </Link>
+    <PostBuildEvent>
+      <Command>copy $(TargetPath) "C:\Users\Lev\projects\Interstellar\Video\RenderingPluginExample53\UnityProject\Assets\Plugins\x86"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ResourceCompile Include="Resources.rc" />

@@ -75,28 +75,62 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SetTimeFromUnity (flo
 
 
 // --------------------------------------------------------------------------
-// LoadMovieFromUnity, an example function we export which is called by one of the scripts.
+// SetTextureFromUnity, an example function we export which is called by one of the scripts.
 
-//static std::string g_MoviePath = "C:\\Users\\Lev\\projects\\Interstellar\\Video\\HAP\\Hap Sample Pack One 1080p\\Movies\\Hebopula Hap HD.mov";
-static std::string g_MoviePath = "C:\\Users\\Lev\\projects\\Interstellar\\Video\\HAP\\videos\\composition_hap.mov";
+static void* g_TexturePointer = nullptr;
+#ifdef SUPPORT_OPENGL_UNIFIED
+static int   g_TexWidth = 0;
+static int   g_TexHeight = 0;
+#endif
+
+//#if SUPPORT_OPENGL_UNIFIED
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieSetTextureFromUnity(void* texturePtr, int w, int h)
+//#else
+//extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SetTextureFromUnity(void* texturePtr)
+//#endif
+{
+  // A script calls this at initialization time; just remember the texture pointer here.
+  // Will update texture pixels each frame from the plugin rendering event (texture update
+  // needs to happen on the rendering thread).
+  g_TexturePointer = texturePtr;
+#if SUPPORT_OPENGL_UNIFIED
+  g_TexWidth = w;
+  g_TexHeight = h;
+#endif
+}
+
+// --------------------------------------------------------------------------
+// HapMovieLoadFromUnity, an example function we export which is called by one of the scripts.
+
+static std::string g_MoviePath; 
 static ci::qtime::MovieGlHapRef g_Movie;
 
-extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieLoadFromUnity(/*std::string path*/)
+// No std::string, see http://stackoverflow.com/a/874575
+extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieLoadFromUnity(const char* path)
 {
   try
   {
+    g_MoviePath = path;
     g_Movie.reset();
     g_Movie = ci::qtime::MovieGlHap::create(g_MoviePath);
-
-    //g_Movie->setLoop();
-    //g_Movie->play();
-
+    auto width = g_Movie->getWidth(), height = g_Movie->getHeight();
+    
     return true;
   }
   catch (...)
   {
+    g_MoviePath.clear();
     g_Movie.reset();
     return false;
+  }
+}
+
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieGetResolutionFromUnity(int32_t& width, int32_t& height)
+{
+  if (g_Movie)
+  {
+    width = g_Movie->getWidth();
+    height = g_Movie->getHeight();
   }
 }
 
@@ -108,6 +142,14 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieSetLoopFromUn
   }
 }
 
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieSetVolumeFromUnity(float volume)
+{
+  if (g_Movie)
+  {
+    g_Movie->setVolume(volume);
+  }
+}
+
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMoviePlayFromUnity()
 {
   if (g_Movie)
@@ -116,36 +158,84 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMoviePlayFromUnity
   }
 }
 
-// --------------------------------------------------------------------------
-// SetTextureFromUnity, an example function we export which is called by one of the scripts.
-
-static void* g_TexturePointer = nullptr;
-#ifdef SUPPORT_OPENGL_UNIFIED
-static int   g_TexWidth  = 0;
-static int   g_TexHeight = 0;
-#endif
-
-//#if SUPPORT_OPENGL_UNIFIED
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SetTextureFromUnity(void* texturePtr, int w, int h)
-//#else
-//extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SetTextureFromUnity(void* texturePtr)
-//#endif
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieStopFromUnity()
 {
-	// A script calls this at initialization time; just remember the texture pointer here.
-	// Will update texture pixels each frame from the plugin rendering event (texture update
-	// needs to happen on the rendering thread).
-	g_TexturePointer = texturePtr;
-#if SUPPORT_OPENGL_UNIFIED
-	g_TexWidth = w;
-	g_TexHeight = h;
-#endif
-
   if (g_Movie)
   {
-    g_Movie->setUnityTexture(g_TexturePointer, g_TexWidth, g_TexHeight);
+    g_Movie->stop();
   }
 }
 
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieSetPlaybackRateFromUnity(float rate)
+{
+  if (g_Movie)
+  {
+    g_Movie->setRate(rate);
+  }
+}
+
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieSeekToFrameFromUnity(int frame)
+{
+  if (g_Movie)
+  {
+    if (frame < 0 || frame >= g_Movie->getNumFrames())
+      return;
+
+    g_Movie->seekToFrame(frame);
+  }
+}
+
+extern "C" int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieGetNumFramesFromUnity()
+{
+  if (g_Movie)
+  {
+    return g_Movie->getNumFrames();
+  }
+  return 0;
+}
+
+extern "C" float UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieGetFramerateFromUnity()
+{
+  if (g_Movie)
+  {
+    return g_Movie->getFramerate();
+  }
+  return 0.0f;
+}
+
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieStepForwardFromUnity()
+{
+  if (g_Movie)
+  {
+    g_Movie->stepForward();
+  }
+}
+
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieStepBackwardFromUnity()
+{
+  if (g_Movie)
+  {
+    g_Movie->stepBackward();
+  }
+}
+
+extern "C" float UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieGetDurationFromUnity()
+{
+  if (g_Movie)
+  {
+    return g_Movie->getDuration();
+  }
+  return 0.0f;
+}
+
+extern "C" float UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieGetCurrentTimeFromUnity()
+{
+  if (g_Movie)
+  {
+    return g_Movie->getCurrentTime();
+  }
+  return 0.0f;
+}
 
 
 enum
@@ -432,56 +522,102 @@ static D3D11_INPUT_ELEMENT_DESC s_DX11InputElementDesc[] = {
 
 static bool EnsureD3D11ResourcesAreCreated()
 {
-	if (g_D3D11VertexShader)
-		return true;
+	//if (g_D3D11VertexShader)
+	//	return true;
 
-	// D3D11 has to load resources. Wait for Unity to provide the streaming assets path first.
-	if (s_UnityStreamingAssetsPath.empty())
-		return false;
+	//// D3D11 has to load resources. Wait for Unity to provide the streaming assets path first.
+	//if (s_UnityStreamingAssetsPath.empty())
+	//	return false;
 
-	D3D11_BUFFER_DESC desc;
-	memset (&desc, 0, sizeof(desc));
+	//D3D11_BUFFER_DESC desc;
+	//memset (&desc, 0, sizeof(desc));
 
-	// vertex buffer
-	desc.Usage = D3D11_USAGE_DEFAULT;
-	desc.ByteWidth = 1024;
-	desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	g_D3D11Device->CreateBuffer (&desc, NULL, &g_D3D11VB);
+	//// vertex buffer
+	//desc.Usage = D3D11_USAGE_DEFAULT;
+	//desc.ByteWidth = 1024;
+	//desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	//g_D3D11Device->CreateBuffer (&desc, NULL, &g_D3D11VB);
 
-	// constant buffer
-	desc.Usage = D3D11_USAGE_DEFAULT;
-	desc.ByteWidth = 64; // hold 1 matrix
-	desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	desc.CPUAccessFlags = 0;
-	g_D3D11Device->CreateBuffer (&desc, NULL, &g_D3D11CB);
+	//// constant buffer
+	//desc.Usage = D3D11_USAGE_DEFAULT;
+	//desc.ByteWidth = 64; // hold 1 matrix
+	//desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	//desc.CPUAccessFlags = 0;
+	//g_D3D11Device->CreateBuffer (&desc, NULL, &g_D3D11CB);
 
 
-	HRESULT hr = -1;
-	Buffer vertexShader;
-	Buffer pixelShader;
-	std::string vertexShaderPath(s_UnityStreamingAssetsPath);
-	vertexShaderPath += "/Shaders/DX11_9_1/SimpleVertexShader.cso";
-	std::string fragmentShaderPath(s_UnityStreamingAssetsPath);
-	fragmentShaderPath += "/Shaders/DX11_9_1/SimplePixelShader.cso";
-	LoadFileIntoBuffer(vertexShaderPath, vertexShader);
-	LoadFileIntoBuffer(fragmentShaderPath, pixelShader);
+	//HRESULT hr = -1;
+	//Buffer vertexShader;
+	//Buffer pixelShader;
+	//std::string vertexShaderPath(s_UnityStreamingAssetsPath);
+	//vertexShaderPath += "/Shaders/DX11_9_1/SimpleVertexShader.cso";
+	//std::string fragmentShaderPath(s_UnityStreamingAssetsPath);
+	//fragmentShaderPath += "/Shaders/DX11_9_1/SimplePixelShader.cso";
+	//LoadFileIntoBuffer(vertexShaderPath, vertexShader);
+	//LoadFileIntoBuffer(fragmentShaderPath, pixelShader);
 
-	if (vertexShader.size() > 0 && pixelShader.size() > 0)
-	{
-		hr = g_D3D11Device->CreateVertexShader(&vertexShader[0], vertexShader.size(), nullptr, &g_D3D11VertexShader);
-		if (FAILED(hr)) DebugLog("Failed to create vertex shader.\n");
-		hr = g_D3D11Device->CreatePixelShader(&pixelShader[0], pixelShader.size(), nullptr, &g_D3D11PixelShader);
-		if (FAILED(hr)) DebugLog("Failed to create pixel shader.\n");
-	}
-	else
-	{
-		DebugLog("Failed to load vertex or pixel shader.\n");
-	}
-	// input layout
-	if (g_D3D11VertexShader && vertexShader.size() > 0)
-	{
-		g_D3D11Device->CreateInputLayout (s_DX11InputElementDesc, 2, &vertexShader[0], vertexShader.size(), &g_D3D11InputLayout);
-	}
+	//if (vertexShader.size() > 0 && pixelShader.size() > 0)
+	//{
+	//	hr = g_D3D11Device->CreateVertexShader(&vertexShader[0], vertexShader.size(), nullptr, &g_D3D11VertexShader);
+	//	if (FAILED(hr)) DebugLog("Failed to create vertex shader.\n");
+	//	hr = g_D3D11Device->CreatePixelShader(&pixelShader[0], pixelShader.size(), nullptr, &g_D3D11PixelShader);
+	//	if (FAILED(hr)) DebugLog("Failed to create pixel shader.\n");
+	//}
+	//else
+	//{
+	//	DebugLog("Failed to load vertex or pixel shader.\n");
+	//}
+	//// input layout
+	//if (g_D3D11VertexShader && vertexShader.size() > 0)
+	//{
+	//	g_D3D11Device->CreateInputLayout (s_DX11InputElementDesc, 2, &vertexShader[0], vertexShader.size(), &g_D3D11InputLayout);
+	//}	//// D3D11 has to load resources. Wait for Unity to provide the streaming assets path first.
+	//if (s_UnityStreamingAssetsPath.empty())
+	//	return false;
+
+	//D3D11_BUFFER_DESC desc;
+	//memset (&desc, 0, sizeof(desc));
+
+	//// vertex buffer
+	//desc.Usage = D3D11_USAGE_DEFAULT;
+	//desc.ByteWidth = 1024;
+	//desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	//g_D3D11Device->CreateBuffer (&desc, NULL, &g_D3D11VB);
+
+	//// constant buffer
+	//desc.Usage = D3D11_USAGE_DEFAULT;
+	//desc.ByteWidth = 64; // hold 1 matrix
+	//desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	//desc.CPUAccessFlags = 0;
+	//g_D3D11Device->CreateBuffer (&desc, NULL, &g_D3D11CB);
+
+
+	//HRESULT hr = -1;
+	//Buffer vertexShader;
+	//Buffer pixelShader;
+	//std::string vertexShaderPath(s_UnityStreamingAssetsPath);
+	//vertexShaderPath += "/Shaders/DX11_9_1/SimpleVertexShader.cso";
+	//std::string fragmentShaderPath(s_UnityStreamingAssetsPath);
+	//fragmentShaderPath += "/Shaders/DX11_9_1/SimplePixelShader.cso";
+	//LoadFileIntoBuffer(vertexShaderPath, vertexShader);
+	//LoadFileIntoBuffer(fragmentShaderPath, pixelShader);
+
+	//if (vertexShader.size() > 0 && pixelShader.size() > 0)
+	//{
+	//	hr = g_D3D11Device->CreateVertexShader(&vertexShader[0], vertexShader.size(), nullptr, &g_D3D11VertexShader);
+	//	if (FAILED(hr)) DebugLog("Failed to create vertex shader.\n");
+	//	hr = g_D3D11Device->CreatePixelShader(&pixelShader[0], pixelShader.size(), nullptr, &g_D3D11PixelShader);
+	//	if (FAILED(hr)) DebugLog("Failed to create pixel shader.\n");
+	//}
+	//else
+	//{
+	//	DebugLog("Failed to load vertex or pixel shader.\n");
+	//}
+	//// input layout
+	//if (g_D3D11VertexShader && vertexShader.size() > 0)
+	//{
+	//	g_D3D11Device->CreateInputLayout (s_DX11InputElementDesc, 2, &vertexShader[0], vertexShader.size(), &g_D3D11InputLayout);
+	//}
 
 	// render states
 	D3D11_RASTERIZER_DESC rsdesc;
@@ -654,117 +790,26 @@ static void DoEventGraphicsDeviceD3D12(UnityGfxDeviceEventType eventType)
 
 #if SUPPORT_OPENGL_UNIFIED
 
-#define VPROG_SRC(ver, attr, varying)								\
-	ver																\
-	attr " highp vec3 pos;\n"										\
-	attr " lowp vec4 color;\n"										\
-	"\n"															\
-	varying " lowp vec4 ocolor;\n"									\
-	"\n"															\
-	"uniform highp mat4 worldMatrix;\n"								\
-	"uniform highp mat4 projMatrix;\n"								\
-	"\n"															\
-	"void main()\n"													\
-	"{\n"															\
-	"	gl_Position = (projMatrix * worldMatrix) * vec4(pos,1);\n"	\
-	"	ocolor = color;\n"											\
-	"}\n"															\
-
-static const char* kGlesVProgTextGLES2		= VPROG_SRC("\n", "attribute", "varying");
-static const char* kGlesVProgTextGLES3		= VPROG_SRC("#version 300 es\n", "in", "out");
-static const char* kGlesVProgTextGLCore		= VPROG_SRC("#version 150\n", "in", "out");
-
-#undef VPROG_SRC
-
-#define FSHADER_SRC(ver, varying, outDecl, outVar)	\
-	ver												\
-	outDecl											\
-	varying " lowp vec4 ocolor;\n"					\
-	"\n"											\
-	"void main()\n"									\
-	"{\n"											\
-	"	" outVar " = ocolor;\n"						\
-	"}\n"											\
-
-static const char* kGlesFShaderTextGLES2	= FSHADER_SRC("\n", "varying", "\n", "gl_FragColor");
-static const char* kGlesFShaderTextGLES3	= FSHADER_SRC("#version 300 es\n", "in", "out lowp vec4 fragColor;\n", "fragColor");
-static const char* kGlesFShaderTextGLCore	= FSHADER_SRC("#version 150\n", "in", "out lowp vec4 fragColor;\n", "fragColor");
-
-#undef FSHADER_SRC
-
-static GLuint	g_VProg;
-static GLuint	g_FShader;
-static GLuint	g_Program;
-static GLuint	g_VertexArray;
-static GLuint	g_ArrayBuffer;
-static int		g_WorldMatrixUniformIndex;
-static int		g_ProjMatrixUniformIndex;
-
-static GLuint CreateShader(GLenum type, const char* text)
-{
-	GLuint ret = glCreateShader(type);
-	glShaderSource(ret, 1, &text, NULL);
-	glCompileShader(ret);
-
-	return ret;
-}
-
 static void DoEventGraphicsDeviceGLUnified(UnityGfxDeviceEventType eventType)
 {
 	if (eventType == kUnityGfxDeviceEventInitialize)
 	{
-		if (s_DeviceType == kUnityGfxRendererOpenGLES20)
-		{
-			::printf("OpenGLES 2.0 device\n");
-			g_VProg		= CreateShader(GL_VERTEX_SHADER, kGlesVProgTextGLES2);
-			g_FShader	= CreateShader(GL_FRAGMENT_SHADER, kGlesFShaderTextGLES2);
-		}
-		else if(s_DeviceType == kUnityGfxRendererOpenGLES30)
-		{
-			::printf("OpenGLES 3.0 device\n");
-			g_VProg		= CreateShader(GL_VERTEX_SHADER, kGlesVProgTextGLES3);
-			g_FShader	= CreateShader(GL_FRAGMENT_SHADER, kGlesFShaderTextGLES3);
-		}
-#if SUPPORT_OPENGL_CORE
-		else if(s_DeviceType == kUnityGfxRendererOpenGLCore)
-		{
-			::printf("OpenGL Core device\n");
-			//glewExperimental = GL_TRUE;
-			//glewInit();
-
+    if (s_DeviceType == kUnityGfxRendererOpenGLES20 ||
+        s_DeviceType == kUnityGfxRendererOpenGLES30)
+    {
       ci::gl::Environment::setCore();
       ci::gl::env()->initializeFunctionPointers();
+    }
 
-			glGetError(); // Clean up error generated by glewInit
-
-			g_VProg		= CreateShader(GL_VERTEX_SHADER, kGlesVProgTextGLCore);
-			g_FShader	= CreateShader(GL_FRAGMENT_SHADER, kGlesFShaderTextGLCore);
-		}
-#endif
-
-		glGenBuffers(1, &g_ArrayBuffer);
-		glBindBuffer(GL_ARRAY_BUFFER, g_ArrayBuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(MyVertex) * 3, NULL, GL_STREAM_DRAW);
-
-		g_Program = glCreateProgram();
-		glBindAttribLocation(g_Program, ATTRIB_POSITION, "pos");
-		glBindAttribLocation(g_Program, ATTRIB_COLOR, "color");
-		glAttachShader(g_Program, g_VProg);
-		glAttachShader(g_Program, g_FShader);
 #if SUPPORT_OPENGL_CORE
-		if(s_DeviceType == kUnityGfxRendererOpenGLCore)
-			glBindFragDataLocation(g_Program, 0, "fragColor");
+    if (s_DeviceType == kUnityGfxRendererOpenGLCore)
+    {
+      ci::gl::Environment::setCore();
+      ci::gl::env()->initializeFunctionPointers();
+    }
 #endif
-		glLinkProgram(g_Program);
 
-		GLint status = 0;
-		glGetProgramiv(g_Program, GL_LINK_STATUS, &status);
-		assert(status == GL_TRUE);
-
-		g_WorldMatrixUniformIndex	= glGetUniformLocation(g_Program, "worldMatrix");
-		g_ProjMatrixUniformIndex	= glGetUniformLocation(g_Program, "projMatrix");
-
-		//assert(glGetError() == GL_NO_ERROR);
+		assert(glGetError() == GL_NO_ERROR);
 	}
 	else if (eventType == kUnityGfxDeviceEventShutdown)
 	{
@@ -844,8 +889,8 @@ static void SetDefaultGraphicsState ()
 	#if SUPPORT_OPENGL_UNIFIED
 	// OpenGL ES / core case
 	if (s_DeviceType == kUnityGfxRendererOpenGLES20 ||
-		s_DeviceType == kUnityGfxRendererOpenGLES30 ||
-		s_DeviceType == kUnityGfxRendererOpenGLCore)
+		  s_DeviceType == kUnityGfxRendererOpenGLES30 ||
+		  s_DeviceType == kUnityGfxRendererOpenGLCore)
 	{
 		glDisable(GL_CULL_FACE);
 		glDisable(GL_BLEND);
@@ -853,7 +898,7 @@ static void SetDefaultGraphicsState ()
 		glEnable(GL_DEPTH_TEST);
 		glDepthMask(GL_FALSE);
 
-		//assert(glGetError() == GL_NO_ERROR);
+		assert(glGetError() == GL_NO_ERROR);
 	}
 	#endif
 }
@@ -894,7 +939,7 @@ static void FillTextureFromCode (int width, int height, int stride, unsigned cha
 
 static void DoRendering (const float* worldMatrix, const float* identityMatrix, float* projectionMatrix, const MyVertex* verts)
 {
-	// Does actual rendering of a simple triangle
+	// Does actual rendering
 
 	#if SUPPORT_D3D9
 	// D3D9 case
@@ -949,41 +994,57 @@ static void DoRendering (const float* worldMatrix, const float* identityMatrix, 
 		ID3D11DeviceContext* ctx = NULL;
 		g_D3D11Device->GetImmediateContext (&ctx);
 
-		// update constant buffer - just the world matrix in our case
-		ctx->UpdateSubresource (g_D3D11CB, 0, NULL, worldMatrix, 64, 0);
+		//// update constant buffer - just the world matrix in our case
+		//ctx->UpdateSubresource (g_D3D11CB, 0, NULL, worldMatrix, 64, 0);
 
-		// set shaders
-		ctx->VSSetConstantBuffers (0, 1, &g_D3D11CB);
-		ctx->VSSetShader (g_D3D11VertexShader, NULL, 0);
-		ctx->PSSetShader (g_D3D11PixelShader, NULL, 0);
+		//// set shaders
+		//ctx->VSSetConstantBuffers (0, 1, &g_D3D11CB);
+		//ctx->VSSetShader (g_D3D11VertexShader, NULL, 0);
+		//ctx->PSSetShader (g_D3D11PixelShader, NULL, 0);
 
-		// update vertex buffer
-		ctx->UpdateSubresource (g_D3D11VB, 0, NULL, verts, sizeof(verts[0])*3, 0);
+		//// update vertex buffer
+		//ctx->UpdateSubresource (g_D3D11VB, 0, NULL, verts, sizeof(verts[0])*3, 0);
 
-		// set input assembler data and draw
-		ctx->IASetInputLayout (g_D3D11InputLayout);
-		ctx->IASetPrimitiveTopology (D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		UINT stride = sizeof(MyVertex);
-		UINT offset = 0;
-		ctx->IASetVertexBuffers (0, 1, &g_D3D11VB, &stride, &offset);
-		ctx->Draw (3, 0);
+		//// set input assembler data and draw
+		//ctx->IASetInputLayout (g_D3D11InputLayout);
+		//ctx->IASetPrimitiveTopology (D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		//UINT stride = sizeof(MyVertex);
+		//UINT offset = 0;
+		//ctx->IASetVertexBuffers (0, 1, &g_D3D11VB, &stride, &offset);
+		//ctx->Draw (3, 0);
 
 		// update native texture from code
 		if (g_TexturePointer)
 		{
-			ID3D11Texture2D* d3dtex = (ID3D11Texture2D*)g_TexturePointer;
-			D3D11_TEXTURE2D_DESC desc;
-			d3dtex->GetDesc (&desc);
+      auto textureUpdateFunc = [&](uint32_t width, uint32_t height, uint32_t dataLength, void* baseAddress)
+      {
+        ID3D11Texture2D* d3dtex = (ID3D11Texture2D*)g_TexturePointer;
+        D3D11_TEXTURE2D_DESC desc;
+        d3dtex->GetDesc(&desc);
 
-			unsigned char* data = new unsigned char[desc.Width*desc.Height*4];
-			FillTextureFromCode (desc.Width, desc.Height, desc.Width*4, data);
+        if (width > desc.Width || height > desc.Height)
+          return;
 
-      // Update subresource is bad!!!
-      // ftp://download.nvidia.com/developer/cuda/seminar/TDCI_DX10perf_DX11preview.pdf
-      // https://eatplayhate.me/2013/09/29/d3d11-texture-update-costs/
+        D3D11_BOX destRegion;
+        destRegion.left = 0;
+        destRegion.right = width;
+        destRegion.top = 0;
+        destRegion.bottom = height;
+        destRegion.front = 0;
+        destRegion.back = 1;
 
-			ctx->UpdateSubresource (d3dtex, 0, NULL, data, desc.Width*4, 0);
-			delete[] data;
+        // FIXME: what is logical explanation for this value?
+        auto rowPitch = width * 2;
+
+        // Update subresource is bad!!!
+        // ftp://download.nvidia.com/developer/cuda/seminar/TDCI_DX10perf_DX11preview.pdf
+        // https://eatplayhate.me/2013/09/29/d3d11-texture-update-costs/
+
+        ctx->UpdateSubresource(d3dtex, 0, &destRegion, baseAddress, rowPitch, 0);
+      };
+
+      // Update the movie texture
+      g_Movie->updateTextureIfNeeded(textureUpdateFunc);
 		}
 
 		ctx->Release();
@@ -1065,117 +1126,82 @@ static void DoRendering (const float* worldMatrix, const float* identityMatrix, 
 	#endif
 
 
-
 	#if SUPPORT_OPENGL_LEGACY
 	// OpenGL 2 legacy case (deprecated)
-	if (s_DeviceType == kUnityGfxRendererOpenGL)
-	{
-		// Transformation matrices
-		glMatrixMode (GL_MODELVIEW);
-		glLoadMatrixf (worldMatrix);
-		glMatrixMode (GL_PROJECTION);
-		// Tweak the projection matrix a bit to make it match what identity
-		// projection would do in D3D case.
-		projectionMatrix[10] = 2.0f;
-		projectionMatrix[14] = -1.0f;
-		glLoadMatrixf (projectionMatrix);
-
-		// Vertex layout
-		glVertexPointer (3, GL_FLOAT, sizeof(verts[0]), &verts[0].x);
-		glEnableClientState (GL_VERTEX_ARRAY);
-		glColorPointer (4, GL_UNSIGNED_BYTE, sizeof(verts[0]), &verts[0].color);
-		glEnableClientState (GL_COLOR_ARRAY);
-
-		// Draw!
-		glDrawArrays (GL_TRIANGLES, 0, 3);
-
-		// update native texture from code
-		if (g_TexturePointer)
-		{
-			GLuint gltex = (GLuint)(size_t)(g_TexturePointer);
-			glBindTexture (GL_TEXTURE_2D, gltex);
-			int texWidth, texHeight;
-			glGetTexLevelParameteriv (GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &texWidth);
-			glGetTexLevelParameteriv (GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &texHeight);
-
-			unsigned char* data = new unsigned char[texWidth*texHeight*4];
-			FillTextureFromCode (texWidth, texHeight, texHeight*4, data);
-			glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, texWidth, texHeight, GL_RGBA, GL_UNSIGNED_BYTE, data);
-			delete[] data;
-		}
-	}
+  if (s_DeviceType == kUnityGfxRendererOpenGL)
+  {
+  }
 	#endif
 	
 	
-	
 	#if SUPPORT_OPENGL_UNIFIED
-	#define BUFFER_OFFSET(i) ((char *)NULL + (i))
-
 	// OpenGL ES / core case
 	if (s_DeviceType == kUnityGfxRendererOpenGLES20 ||
 		  s_DeviceType == kUnityGfxRendererOpenGLES30 ||
 		  s_DeviceType == kUnityGfxRendererOpenGLCore)
 	{
-		//assert(glGetError() == GL_NO_ERROR); // Make sure no OpenGL error happen before starting rendering
+		assert(glGetError() == GL_NO_ERROR); // Make sure no OpenGL error happen before starting rendering
 
-		// Tweak the projection matrix a bit to make it match what identity projection would do in D3D case.
-		projectionMatrix[10] = 2.0f;
-		projectionMatrix[14] = -1.0f;
+    auto textureUpdateFunc = [&](int width, int height, int dataLength, void* baseAddress)
+    {
+      auto getErrorString = [](GLenum err) -> std::string
+      {
+        switch (err) {
+        case GL_NO_ERROR:
+          return "GL_NO_ERROR";
+        case GL_INVALID_ENUM:
+          return "GL_INVALID_ENUM";
+        case GL_INVALID_VALUE:
+          return "GL_INVALID_VALUE";
+        case GL_INVALID_OPERATION:
+          return "GL_INVALID_OPERATION";
+        case GL_INVALID_FRAMEBUFFER_OPERATION:
+          return "GL_INVALID_FRAMEBUFFER_OPERATION";
+        case GL_OUT_OF_MEMORY:
+          return "GL_OUT_OF_MEMORY";
+        default:
+          return "";
+        }
+      };
 
-    g_Movie->updateUnityTexture();
+      // FIXME: crashes
+      //gl::ScopedTextureBind bind(GL_TEXTURE_2D, textureId);
 
-//		glUseProgram(g_Program);
-//		glUniformMatrix4fv(g_WorldMatrixUniformIndex, 1, GL_FALSE, worldMatrix);
-//		glUniformMatrix4fv(g_ProjMatrixUniformIndex, 1, GL_FALSE, projectionMatrix);
-//
-//#if SUPPORT_OPENGL_CORE
-//		if (s_DeviceType == kUnityGfxRendererOpenGLCore)
-//		{
-//			glGenVertexArrays(1, &g_VertexArray);
-//			glBindVertexArray(g_VertexArray);
-//		}
-//#endif
-//
-//		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-//		glBindBuffer(GL_ARRAY_BUFFER, g_ArrayBuffer);
-//		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(MyVertex) * 3, &verts[0].x);
-//
-//		glEnableVertexAttribArray(ATTRIB_POSITION);
-//		glVertexAttribPointer(ATTRIB_POSITION, 3, GL_FLOAT, GL_FALSE, sizeof(MyVertex), BUFFER_OFFSET(0));
-//
-//		glEnableVertexAttribArray(ATTRIB_COLOR);
-//		glVertexAttribPointer(ATTRIB_COLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(MyVertex), BUFFER_OFFSET(sizeof(float) * 3));
-//
-//		glDrawArrays(GL_TRIANGLES, 0, 3);
-//
-//		// update native texture from code
-//		if (g_TexturePointer)
-//		{
-//			GLuint gltex = (GLuint)(size_t)(g_TexturePointer);
-//			glBindTexture(GL_TEXTURE_2D, gltex);
-//			// The script only pass width and height with OpenGL ES on mobile
-//#if SUPPORT_OPENGL_CORE
-//			if (s_DeviceType == kUnityGfxRendererOpenGLCore)
-//			{
-//				glGetTexLevelParameteriv (GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &g_TexWidth);
-//				glGetTexLevelParameteriv (GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &g_TexHeight);
-//			}
-//#endif
-//
-//			unsigned char* data = new unsigned char[g_TexWidth*g_TexHeight*4];
-//			FillTextureFromCode(g_TexWidth, g_TexHeight, g_TexHeight*4, data);
-//			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, g_TexWidth, g_TexHeight, GL_RGBA, GL_UNSIGNED_BYTE, data);
-//			delete[] data;
-//		}
-//
-//#if SUPPORT_OPENGL_CORE
-//		if (s_DeviceType == kUnityGfxRendererOpenGLCore)
-//		{
-//			glDeleteVertexArrays(1, &g_VertexArray);
-//		}
-//#endif
+      //glEnable(GL_TEXTURE_2D);
+      auto error = getErrorString(glGetError());
 
-		//assert(glGetError() == GL_NO_ERROR);
+      GLuint textureId = (GLuint)(size_t)(g_TexturePointer);
+      glBindTexture(GL_TEXTURE_2D, textureId);
+      error = getErrorString(glGetError());
+
+      GLint mInternalFormat;
+      glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT, &mInternalFormat);
+      assert(mInternalFormat == GL_COMPRESSED_RGB_S3TC_DXT1_EXT);
+      error = getErrorString(glGetError());
+
+      GLint mCompressed;
+      glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED, &mCompressed);
+      assert(mCompressed == 1);
+      error = getErrorString(glGetError());
+
+      glCompressedTexSubImage2D(GL_TEXTURE_2D,
+                                0,
+                                0,
+                                0,
+                                width,
+                                height,
+                                GL_COMPRESSED_RGB_S3TC_DXT1_EXT,
+                                dataLength,
+                                baseAddress);
+      error = getErrorString(glGetError());
+
+      //glBindTexture(GL_TEXTURE_2D, 0);
+      //glDisable(GL_TEXTURE_2D);
+    };
+
+    g_Movie->updateTextureIfNeeded(textureUpdateFunc);
+
+		assert(glGetError() == GL_NO_ERROR);
 	}
 	#endif
 }

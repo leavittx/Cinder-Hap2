@@ -5,8 +5,19 @@ EXPORTS
    UnityPluginUnload
    SetTimeFromUnity
    HapMovieLoadFromUnity
+   HapMovieGetResolutionFromUnity
    HapMovieSetLoopFromUnity
+   HapMovieSetVolumeFromUnity
    HapMoviePlayFromUnity
-   SetTextureFromUnity
+   HapMovieStopFromUnity
+   HapMovieSetPlaybackRateFromUnity
+   HapMovieSeekToFrameFromUnity
+   HapMovieGetNumFramesFromUnity
+   HapMovieGetFramerateFromUnity
+   HapMovieStepForwardFromUnity
+   HapMovieStepBackwardFromUnity
+   HapMovieGetDurationFromUnity
+   HapMovieGetCurrentTimeFromUnity
+   HapMovieSetTextureFromUnity
    SetUnityStreamingAssetsPath
    GetRenderEventFunc
