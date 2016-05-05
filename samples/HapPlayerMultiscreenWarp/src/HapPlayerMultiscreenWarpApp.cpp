@@ -1,3 +1,6 @@
+// stops windows.h including winsock.h (http://stackoverflow.com/a/1372836)
+#define _WINSOCKAPI_
+
 // TODO: 
 // 1. savable per-warp uv settings
 // 2. use fast mov reader (vux)
@@ -14,6 +17,8 @@
 #include "cinder/ImageIo.h"
 #include "cinder/Timer.h"
 #include "cinder/Xml.h"
+
+#include "OscClient.h"
 
 #include "Resources.h"
 
@@ -80,6 +85,7 @@ private:
   AppSettings getCurrentAppSettings();
   void applyAppSettings(const AppSettings& appSettings);
   void createPerspectiveWarp();
+  void onVideoIndexPressed(int idx);
 
 private:
   // Hap video playback
@@ -99,6 +105,8 @@ private:
 
   // Settings
   fs::path mAppSettingsPath;
+
+  osc::ClientRef mOscClient;
 };
 
 HapPlayerMultiscreenWarpApp::HapPlayerMultiscreenWarpApp()
@@ -149,6 +157,8 @@ void HapPlayerMultiscreenWarpApp::setup()
   {
     console() << ex.what() << std::endl;
   }
+
+  mOscClient = osc::Client::create("192.168.1.201", 8001, osc::PROTO_UDP);
 }
 
 void HapPlayerMultiscreenWarpApp::cleanup()
@@ -167,12 +177,12 @@ void HapPlayerMultiscreenWarpApp::draw()
   gl::enableAlphaBlending();
   gl::viewport(toPixels(getWindowSize()));
 
-  // draw grid
-  ivec2 sz = getWindowSize() / ivec2(8, 6);
-  gl::color(Color::gray(0.2f));
-  for (int x = 0; x < 8; x++)
-    for (int y = (x % 2 ? 0 : 1); y < 6; y += 2)
-      gl::drawSolidRect(Rectf(0.0f, 0.0f, sz.x, sz.y) + sz * ivec2(x, y));
+  //// draw grid
+  //ivec2 sz = getWindowSize() / ivec2(8, 6);
+  //gl::color(Color::gray(0.2f));
+  //for (int x = 0; x < 8; x++)
+  //  for (int y = (x % 2 ? 0 : 1); y < 6; y += 2)
+  //    gl::drawSolidRect(Rectf(0.0f, 0.0f, sz.x, sz.y) + sz * ivec2(x, y));
 
   mPerfTracker->startFrame();
   drawMovie();
@@ -329,6 +339,24 @@ void HapPlayerMultiscreenWarpApp::keyDown(KeyEvent event)
       mUseBeginEnd = !mUseBeginEnd;
       //updateWindowTitle();
       break;
+    case KeyEvent::KEY_1:
+      onVideoIndexPressed(1);
+      break;
+    case KeyEvent::KEY_2:
+      onVideoIndexPressed(2);
+      break;
+    case KeyEvent::KEY_3:
+      onVideoIndexPressed(3);
+      break;
+    case KeyEvent::KEY_4:
+      onVideoIndexPressed(4);
+      break;
+    case KeyEvent::KEY_5:
+      onVideoIndexPressed(5);
+      break;
+    case KeyEvent::KEY_6:
+      onVideoIndexPressed(6);
+      break;
     }
   }
 }
@@ -355,7 +383,7 @@ void HapPlayerMultiscreenWarpApp::loadMovieFile(const fs::path &moviePath)
     mMovie = qtime::MovieGlHap::create(moviePath);
     updateMovieVolume();
     mMovie->setLoop();
-    mMovie->play();
+    //mMovie->play();
 
     // create a texture for showing some info about the movie
     TextLayout infoText;
@@ -603,6 +631,18 @@ void HapPlayerMultiscreenWarpApp::createPerspectiveWarp()
   warpNew->resize();
 
   mWarps.push_back(warpNew);
+}
+
+void HapPlayerMultiscreenWarpApp::onVideoIndexPressed(int idx)
+{
+  osc::Message message("/video");
+  message.addArg(idx);
+  mOscClient->send(message);
+
+  //mMovie->stop();
+  mMovie->seekToFrame(0);
+  //mMovie->seekToStart();
+  mMovie->play();
 }
 
 CINDER_APP(HapPlayerMultiscreenWarpApp,

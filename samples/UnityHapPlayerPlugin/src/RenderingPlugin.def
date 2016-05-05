@@ -5,6 +5,7 @@ EXPORTS
    UnityPluginUnload
    SetTimeFromUnity
    HapMovieLoadFromUnity
+   HapMovieResetFromUnity
    HapMovieGetResolutionFromUnity
    HapMovieSetLoopFromUnity
    HapMovieSetVolumeFromUnity

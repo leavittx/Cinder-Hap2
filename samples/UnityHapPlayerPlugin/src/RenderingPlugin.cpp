@@ -125,6 +125,12 @@ extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieLoadFromUnity
   }
 }
 
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieResetFromUnity(const char* path)
+{
+  g_MoviePath = "";
+  g_Movie.reset();
+}
+
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API HapMovieGetResolutionFromUnity(int32_t& width, int32_t& height)
 {
   if (g_Movie)
@@ -940,6 +946,11 @@ static void FillTextureFromCode (int width, int height, int stride, unsigned cha
 static void DoRendering (const float* worldMatrix, const float* identityMatrix, float* projectionMatrix, const MyVertex* verts)
 {
 	// Does actual rendering
+
+  if (!g_Movie)
+  {
+    return;
+  }
 
 	#if SUPPORT_D3D9
 	// D3D9 case
