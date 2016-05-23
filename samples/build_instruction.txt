@@ -1,4 +1,6 @@
 To build these samples you need:
+0. Install QuickTime for windows (good luck with that!). 
+Note: since QuickTime sucks, even if you'll manage to install it on your machine, you'll be able to use it only in 32bit apps.
 1. Download cinder 0.9 for vs2013
 2. Copy the entire Cinder-Hap2 block folder into 
 <cinder root directory>/blocks.
