@@ -18,7 +18,8 @@
 #include "cinder/Timer.h"
 #include "cinder/Xml.h"
 
-#include "OscClient.h"
+// Need to add Cinder-OSC block for this
+//#include "OscClient.h"
 
 #include "Resources.h"
 
@@ -106,7 +107,8 @@ private:
   // Settings
   fs::path mAppSettingsPath;
 
-  osc::ClientRef mOscClient;
+  // Need to add Cinder-OSC block for this
+  //osc::ClientRef mOscClient;
 };
 
 HapPlayerMultiscreenWarpApp::HapPlayerMultiscreenWarpApp()
@@ -158,7 +160,8 @@ void HapPlayerMultiscreenWarpApp::setup()
     console() << ex.what() << std::endl;
   }
 
-  mOscClient = osc::Client::create("192.168.1.201", 8001, osc::PROTO_UDP);
+  // Need to add Cinder-OSC block for this
+  //mOscClient = osc::Client::create("192.168.1.201", 8001, osc::PROTO_UDP);
 }
 
 void HapPlayerMultiscreenWarpApp::cleanup()
@@ -635,9 +638,10 @@ void HapPlayerMultiscreenWarpApp::createPerspectiveWarp()
 
 void HapPlayerMultiscreenWarpApp::onVideoIndexPressed(int idx)
 {
-  osc::Message message("/video");
-  message.addArg(idx);
-  mOscClient->send(message);
+  // Need to add Cinder-OSC block for this
+  //osc::Message message("/video");
+  //message.addArg(idx);
+  //mOscClient->send(message);
 
   //mMovie->stop();
   mMovie->seekToFrame(0);
