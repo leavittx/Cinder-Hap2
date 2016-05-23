@@ -1,0 +1,9 @@
+To build these samples you need:
+1. Download cinder 0.9 for vs2013
+2. Copy the entire Cinder-Hap2 block folder into 
+<cinder root directory>/blocks.
+3. Clone https://github.com/leavittx/Cinder-Warping to the <cinder root directory>/blocks.
+4. Open needed project file in Visual Studio 2013
+5. Build using F7
+
+Note: OSC commands in HapPlayerMultiscreenWarp are disabled, to enable them you will also need the Cinder-OSC block
